@@ -162,11 +162,11 @@ export default function HorusOnboardingOverlay({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
               transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-              className="absolute inset-x-0 bottom-0 z-30 p-6 pb-10"
+              className="absolute inset-x-0 z-30 p-6"
               style={{
-                paddingBottom: 'calc(var(--sai-bottom,env(safe-area-inset-bottom,0px)) + 32px)',
+                bottom: 'calc(var(--sai-bottom,env(safe-area-inset-bottom,0px)) + 12vh)',
                 background:
-                  'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.95) 100%)',
+                  'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 30%, rgba(0,0,0,0.92) 100%)',
               }}
             >
               <div className="max-w-sm mx-auto">
