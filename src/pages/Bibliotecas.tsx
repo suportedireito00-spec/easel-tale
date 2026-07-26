@@ -18,6 +18,7 @@ import FilosofosPanel from '@/components/biblioteca/FilosofosPanel';
 import RecomendacoesCarousel from '@/components/biblioteca/RecomendacoesCarousel';
 import ContinuarLeituraCarousel from '@/components/biblioteca/ContinuarLeituraCarousel';
 import { useIsDesktop } from '@/hooks/use-desktop';
+import { track } from '@/lib/analyticsEvents';
 
 const BibliotecasDesktop = lazy(() => import('./BibliotecasDesktop'));
 
