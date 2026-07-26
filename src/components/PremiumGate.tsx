@@ -45,6 +45,10 @@ const FEATURES: Record<PremiumFeatureKey, FeatureInfo> = {
   biblioteca:    { title: 'Biblioteca completa', description: 'No plano gratuito você lê 1 livro por mês. Assine para ler todo o acervo — leitura nativa, PDF, folheada, offline e desktop.', icon: Library },
   aprender:      { title: 'Trilha Aprender ilimitada', description: 'Estude com trilhas guiadas e conteúdo sem limite diário. Assine para desbloquear.', icon: GraduationCap },
   horus:         { title: 'Horus 24h no WhatsApp', description: 'Sua assistente jurídica pessoal disponível 24h no WhatsApp. Assine para desbloquear.', icon: Bot },
+  chat_juridico: { title: 'Chat Jurídico ilimitado', description: 'No plano gratuito você tem 1 interação por dia no Chat Jurídico. Assine para conversar sem limites.', icon: MessageCircle },
+  chat_web:      { title: 'Pesquisar na internet', description: 'A busca em tempo real na internet dentro do Chat Jurídico é exclusiva para assinantes.', icon: Sparkles },
+  chat_anexo:    { title: 'Enviar áudio, PDF e fotos', description: 'Analisar documentos, imagens e áudios no Chat Jurídico é exclusivo para assinantes.', icon: FileText },
+
   default:       { title: 'Funcionalidade Premium', description: 'Assine para desbloquear esta função e aproveitar todos os recursos sem limites.', icon: Crown },
 };
 
