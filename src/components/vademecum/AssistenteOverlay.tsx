@@ -933,7 +933,15 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
             )}
             {shareText && <ShareSheet text={shareText} onClose={() => setShareText(null)} />}
           </AnimatePresence>
+
+          <PremiumGate
+            open={!!gateFeature}
+            onClose={() => setGateFeature(null)}
+            feature={gateFeature ?? 'chat_juridico'}
+            usageLabel={gateFeature === 'chat_juridico' ? 'Você já usou sua interação gratuita de hoje' : undefined}
+          />
           </div>
+
         </motion.div>
       )}
     </AnimatePresence>
