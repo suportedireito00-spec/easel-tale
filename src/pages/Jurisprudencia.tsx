@@ -158,6 +158,7 @@ const Jurisprudencia = () => {
   }, []);
 
   const abrir = (id: string) => {
+    track('jurisprudencia_category_opened', { category_id: id });
     if (id === 'PRONTAS_STF') {
       navigate('/jurisprudencia/prontas/stf');
       return;
@@ -194,6 +195,7 @@ const Jurisprudencia = () => {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
+    track('jurisprudencia_search_submitted', { query_length: q.length, query_terms: q.split(/\s+/).length });
     navigate(`/jurisprudencia/sumulas-stf?q=${encodeURIComponent(q)}`);
   };
 
