@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   Loader2, Clock, Activity, Flame, Star, Calendar, Crown, Phone, Mail,
-  GraduationCap, LayoutGrid, MessageCircle, MapPin,
+  GraduationCap, LayoutGrid, MessageCircle, MapPin, Trash2, X, Ban, ShieldAlert,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { rotaParaFuncao, FEATURE_LABELS, formatarDuracao } from '@/lib/rotaFuncoes';
 
 interface Props {
@@ -57,6 +58,26 @@ const dia = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') 
 export function UserDossieSheet({ userId, nome, email, provider, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [d, setD] = useState<Dossie | null>(null);
+  const [confirmar, setConfirmar] = useState<null | 'menu' | 'ban' | 'delete'>(null);
+  const [executando, setExecutando] = useState(false);
+
+  const executarAcao = async (acao: 'ban' | 'delete') => {
+    if (!userId) return;
+    setExecutando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-user-acao', {
+        body: { user_id: userId, acao },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+      toast.success(acao === 'ban' ? 'Usuário banido — não poderá usar este e-mail' : 'Conta excluída definitivamente');
+      setConfirmar(null);
+      onClose();
+    } catch (e: any) {
+      toast.error('Não foi possível concluir', { description: e?.message });
+    } finally {
+      setExecutando(false);
+    }
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -209,13 +230,36 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
         className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border"
       >
         <SheetHeader className="px-4 pt-6 pb-4 border-b border-border/50 text-left sticky top-0 bg-background z-10">
-          <SheetTitle className="font-display text-xl font-bold text-foreground truncate">
-            {nome || email || 'Usuário'}
-          </SheetTitle>
-          <p className="font-body text-[14px] text-muted-foreground mt-1 truncate">
-            {email || '—'} {provider ? `· ${provider}` : ''}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="font-display text-xl font-bold text-foreground truncate">
+                {nome || email || 'Usuário'}
+              </SheetTitle>
+              <p className="font-body text-[14px] text-muted-foreground mt-1 truncate">
+                {email || '—'} {provider ? `· ${provider}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setConfirmar('menu')}
+                aria-label="Excluir ou banir usuário"
+                className="w-10 h-10 rounded-full border border-destructive/40 bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 active:bg-destructive/30 transition-colors"
+              >
+                <Trash2 className="w-4.5 h-4.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar"
+                className="w-10 h-10 rounded-full border border-border/60 bg-secondary/40 text-foreground flex items-center justify-center hover:bg-secondary active:bg-secondary/80 transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+          </div>
         </SheetHeader>
+
 
         {loading || !d ? (
           <div className="flex justify-center py-16 text-muted-foreground">
@@ -431,7 +475,92 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
           </div>
         )}
       </SheetContent>
+
+      <Sheet open={!!confirmar} onOpenChange={(v) => !v && !executando && setConfirmar(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl p-0 bg-background border-border">
+          <div className="p-5 space-y-4">
+            {confirmar === 'menu' ? (
+              <>
+                <div>
+                  <div className="font-display text-lg font-bold text-foreground">Ações do usuário</div>
+                  <p className="font-body text-[13px] text-muted-foreground mt-1 truncate">{email || nome}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar('ban')}
+                  className="w-full flex items-start gap-3 rounded-2xl border border-border/60 bg-secondary/30 px-4 py-4 text-left hover:bg-secondary/60 transition-colors"
+                >
+                  <Ban className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-body text-[15px] font-semibold text-foreground">Banir usuário</div>
+                    <div className="font-body text-[12.5px] text-muted-foreground mt-0.5">
+                      Bloqueia o acesso e mantém o e-mail reservado — não poderá criar outra conta com ele.
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar('delete')}
+                  className="w-full flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-4 text-left hover:bg-destructive/20 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-body text-[15px] font-semibold text-destructive">Excluir conta</div>
+                    <div className="font-body text-[12.5px] text-muted-foreground mt-0.5">
+                      Apaga a conta e todos os dados. O e-mail fica livre para um novo cadastro.
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar(null)}
+                  className="w-full rounded-2xl border border-border/60 px-4 py-3 font-body text-[14px] text-muted-foreground"
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-6 h-6 text-destructive shrink-0" />
+                  <div>
+                    <div className="font-display text-lg font-bold text-foreground">
+                      {confirmar === 'ban' ? 'Banir este usuário?' : 'Excluir a conta?'}
+                    </div>
+                    <p className="font-body text-[13px] text-muted-foreground mt-1">
+                      {confirmar === 'ban'
+                        ? 'Ele perde o acesso imediatamente e o e-mail continua bloqueado para novos cadastros.'
+                        : 'Todos os dados serão apagados definitivamente. Esta ação não pode ser desfeita.'}
+                    </p>
+                    <p className="font-body text-[12.5px] text-foreground mt-2 truncate">{email || nome}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    disabled={executando}
+                    onClick={() => setConfirmar('menu')}
+                    className="rounded-2xl border border-border/60 px-4 py-3 font-body text-[14px] text-muted-foreground disabled:opacity-50"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={executando}
+                    onClick={() => executarAcao(confirmar as 'ban' | 'delete')}
+                    className="rounded-2xl bg-destructive px-4 py-3 font-body text-[14px] font-semibold text-destructive-foreground inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {executando && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {confirmar === 'ban' ? 'Banir' : 'Excluir'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Sheet>
   );
 }
+
 
