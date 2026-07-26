@@ -370,15 +370,18 @@ const AuthFormScreen = ({ onBack }: { onBack: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    track(`${mode}_attempted`, { email_domain: email.split('@')[1] ?? 'unknown' });
     try {
       if (mode === 'forgot') {
         const { error } = await resetPassword(email);
         if (error) throw error;
+        track('password_reset_sent', { email_domain: email.split('@')[1] ?? 'unknown' });
         toast.success('Enviamos o link de recuperação para seu email.');
         setResetEmailSent(true);
       } else if (mode === 'login') {
         const { error } = await signIn(email, password);
         if (error) throw error;
+        track('login_success', { method: 'email' });
       } else {
         if (password !== confirmPassword) {
           toastErroAuth('As senhas não coincidem.');
@@ -387,12 +390,14 @@ const AuthFormScreen = ({ onBack }: { onBack: () => void }) => {
         }
         const { error } = await signUp(email, password, displayName);
         if (error) throw error;
+        track('signup_success', { method: 'email', has_display_name: Boolean(displayName) });
         // Ao criar conta, o usuário aceita os Termos e a Política de Privacidade,
         // incluindo o uso de analytics anônimo (LGPD — Consent Mode v2).
         try { (await import('@/lib/analytics')).grantConsent(); } catch {}
         toast.success('Conta criada! Verifique seu email para confirmar.');
       }
     } catch (err: any) {
+      track(`${mode}_failed`, { erro: err.message ?? 'unknown' });
       toastErroAuth(err.message);
     } finally {
       setSubmitting(false);
