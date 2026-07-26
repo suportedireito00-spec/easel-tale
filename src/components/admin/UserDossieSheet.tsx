@@ -146,6 +146,8 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
           .map(([k, count]) => ({ label: k, count })).slice(0, 12),
         contadores: { favoritos: favR.count || 0, grifos: grifR.count || 0, anotacoes: anotR.count || 0 },
         assinatura: assR.data,
+        horus: (horusR as any)?.data || null,
+        horusStats: (horusStatsR as any)?.data || null,
       });
       setLoading(false);
     })();
