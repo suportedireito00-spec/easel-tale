@@ -49,8 +49,9 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
   const [gateOpen, setGateOpen] = useState(false);
   const [lembreteOpen, setLembreteOpen] = useState(false);
   const { canUse, register, used, config } = useFeatureLimit('biblioteca_ler', {
-    scope: livro?.colecaoId || null,
+    scope: livro ? String(livro.id) : null,
   });
+
 
   // Ficha técnica: nº de páginas + tempo médio de leitura (lazy via pdfjs)
   const numPages = useLivroPageCount(open ? livro?.download : null);
