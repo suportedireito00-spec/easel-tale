@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Radio, UserPlus, Sparkles, Loader2 } from 'lucide-react';
+import { Radio, UserPlus, Sparkles, Loader2, Mail } from 'lucide-react';
+import { SiGoogle, SiApple } from 'react-icons/si';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -10,7 +11,26 @@ interface Row {
   title: string;
   subtitle?: string | null;
   meta?: string | null;
+  userId?: string | null;
+  provider?: string | null;
 }
+
+const ProviderTag = ({ provider }: { provider?: string | null }) => {
+  if (!provider) return null;
+  const p = provider.toLowerCase();
+  const cfg =
+    p.includes('google')
+      ? { label: 'Google', node: <SiGoogle className="w-3 h-3" /> }
+      : p.includes('apple')
+        ? { label: 'Apple', node: <SiApple className="w-3 h-3" /> }
+        : { label: 'E-mail', node: <Mail className="w-3 h-3" /> };
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-[2px] font-body text-[10px] text-muted-foreground shrink-0">
+      {cfg.node}
+      {cfg.label}
+    </span>
+  );
+};
 
 const startOfToday = () => {
   const d = new Date();
@@ -53,6 +73,7 @@ export function AdminHojeCards() {
     setLoading(true);
     setRows([]);
     const since = startOfToday();
+    const pendingIds: string[] = [];
     try {
       if (id === 'online') {
         const { data } = await supabase
@@ -65,8 +86,9 @@ export function AdminHojeCards() {
         setRows(
           ((data as any[]) || [])
             .filter((r) => (seen.has(r.user_id) ? false : (seen.add(r.user_id), true)))
-            .map((r) => ({
+            .map((r) => (pendingIds.push(r.user_id), {
               key: r.user_id,
+              userId: r.user_id,
               title: r.display_name || r.email || 'Usuário',
               subtitle: r.current_route || null,
               meta: hora(r.last_seen_at),
@@ -80,8 +102,9 @@ export function AdminHojeCards() {
           .order('created_at', { ascending: false })
           .limit(300);
         setRows(
-          ((data as any[]) || []).map((r) => ({
+          ((data as any[]) || []).map((r) => (pendingIds.push(r.id), {
             key: r.id,
+            userId: r.id,
             title: r.full_name || r.email || 'Usuário',
             subtitle: r.email || null,
             meta: hora(r.created_at),
@@ -97,11 +120,18 @@ export function AdminHojeCards() {
         setRows(
           ((data as any[]) || []).map((r) => ({
             key: r.id,
+            userId: r.user_id,
             title: r.product_id || 'Assinatura',
             subtitle: `${r.base_plan_id || '—'} · ${String(r.status || '').replace('SUBSCRIPTION_STATE_', '')}`,
             meta: hora(r.created_at),
           })),
         );
+      }
+      const ids = Array.from(new Set(pendingIds)).filter(Boolean);
+      if (ids.length) {
+        const { data: provs } = await supabase.rpc('admin_user_auth_providers' as any, { _ids: ids });
+        const map = new Map<string, string>(((provs as any[]) || []).map((p) => [p.user_id, p.provider]));
+        setRows((current) => current.map((r) => ({ ...r, provider: map.get(r.userId || r.key) || r.provider })));
       }
     } finally {
       setLoading(false);
@@ -137,7 +167,7 @@ export function AdminHojeCards() {
       </div>
 
       <Sheet open={!!open} onOpenChange={(v) => !v && setOpen(null)}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto p-0 bg-background border-border">
+        <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
           <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
             <SheetTitle className="font-display text-base font-bold text-foreground">
               {open ? titles[open] : ''}
@@ -163,6 +193,7 @@ export function AdminHojeCards() {
                         <div className="font-body text-[11px] text-muted-foreground truncate">{r.subtitle}</div>
                       )}
                     </div>
+                    <ProviderTag provider={r.provider} />
                     <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
                   </div>
                 ))}

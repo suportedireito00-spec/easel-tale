@@ -7444,6 +7444,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_user_auth_providers: {
+        Args: { _ids: string[] }
+        Returns: {
+          email: string
+          provider: string
+          user_id: string
+        }[]
+      }
       aplicar_hierarquia_lei: {
         Args: {
           _art_ids: string[]
