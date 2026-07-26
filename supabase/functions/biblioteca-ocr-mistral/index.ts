@@ -750,6 +750,36 @@ async function handleRefino(body: RefinoBody) {
         paginas: [inicio, fim], conteudo_md: conteudo,
       });
     }
+    if (!capitulos.length) {
+      console.warn("[refino] nenhum capítulo válido após validação; criando fallback por conteúdo real");
+      const partes: string[] = [];
+      let inicioFallback: number | null = null;
+      let fimFallback: number | null = null;
+      for (let p = 1; p <= cleaned.length; p++) {
+        if (prelim.has(p)) continue;
+        const md = cleaned[p - 1];
+        if (!temTextoUtil(md)) continue;
+        if (inicioFallback === null) inicioFallback = p;
+        fimFallback = p;
+        partes.push(`<!-- page:${p} -->\n\n${md}`);
+      }
+      const conteudoFallback = partes.join("\n\n");
+      if (inicioFallback !== null && fimFallback !== null && temTextoUtil(conteudoFallback, 120)) {
+        capitulos.push({
+          numero: 1,
+          titulo: "Conteúdo",
+          capa_md: montarCapaCapitulo({
+            numero: 1,
+            titulo: "Conteúdo",
+            totalPaginas: fimFallback - inicioFallback + 1,
+            totalPalavras: conteudoFallback.split(/\s+/).length,
+          }),
+          paginas: [inicioFallback, fimFallback],
+          conteudo_md: conteudoFallback,
+        });
+      }
+    }
+
     const conteudoFinal = capitulos.map((c) => `${c.capa_md}\n\n${c.conteudo_md}`).join("\n\n---\n\n");
 
     // Um único UPDATE final: grava conteúdo + marca refino/status como pronto
@@ -1024,7 +1054,13 @@ function validarERepararSumario(
     }));
   }
 
-  if (!capitulos.length) return sumario;
+  if (!capitulos.length) {
+    const primeiraPaginaConteudo = pageClasses.find((p) => p.kind === "conteudo")?.page ?? 1;
+    return {
+      capitulos: [{ numero: 1, titulo: "Conteúdo", pagina_inicio: primeiraPaginaConteudo, pagina_fim: totalPaginas }],
+      preliminaresPaginas: unirPaginas(sumario.preliminaresPaginas || [], pageClasses.filter((p) => p.kind !== "conteudo").map((p) => p.page), totalPaginas),
+    };
+  }
 
   const tocPages = new Set<number>();
   pages.forEach((p, i) => {
@@ -1039,7 +1075,10 @@ function validarERepararSumario(
   const repetiuPagina = capitulos.length >= 4 && uniqueStarts.size <= Math.max(2, Math.ceil(capitulos.length * 0.35));
   const apontaParaIndice = starts.filter((p) => tocPages.has(p)).length >= Math.max(1, Math.ceil(capitulos.length * 0.25));
 
-  if (!repetiuPagina && !apontaParaIndice) {
+  const fragmentadoDemais = capitulos.length > Math.max(8, Math.ceil(totalPaginas / 3));
+  const semConfirmacaoNoCorpo = capitulos.filter((c) => !paginaTemTitulo(pages[c.pagina_inicio - 1] || "", c.titulo)).length;
+
+  if (!repetiuPagina && !apontaParaIndice && !fragmentadoDemais && semConfirmacaoNoCorpo <= Math.ceil(capitulos.length * 0.5)) {
     return {
       capitulos: normalizarFaixasCapitulos(capitulos, totalPaginas),
       preliminaresPaginas: unirPaginas(sumario.preliminaresPaginas || [], Array.from(tocPages), totalPaginas),
@@ -1049,6 +1088,8 @@ function validarERepararSumario(
   console.warn('[refino] sumário suspeito; reparando páginas reais dos capítulos', {
     capitulos: capitulos.length,
     starts: uniqueStarts.size,
+    fragmentadoDemais,
+    semConfirmacaoNoCorpo,
     tocPages: Array.from(tocPages),
   });
 
