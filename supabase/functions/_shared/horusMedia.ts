@@ -101,12 +101,16 @@ export function transcribeAudio(base64: string, mimetype: string): Promise<strin
   );
 }
 
-/** Descreve imagem + extrai texto visível (OCR leve). */
+/** Descreve imagem + extrai texto visível (OCR leve), com foco jurídico. */
 export function describeImage(base64: string, mimetype: string): Promise<string> {
   return callGemini(
     base64,
     mimetype || "image/jpeg",
-    "Descreva de forma objetiva o que aparece na imagem em português e transcreva LITERALMENTE todo o texto visível (OCR). Comece com a descrição, depois liste o texto extraído sob o título 'Texto:'. Seja conciso.",
+    "Você é o Horus, assistente jurídico. Analise a imagem em português e retorne:\n" +
+      "1) DESCRIÇÃO: o que aparece na imagem (objetos, pessoas, cenário, contexto).\n" +
+      "2) TEXTO: transcreva LITERALMENTE todo texto visível (OCR completo, sem resumir).\n" +
+      "3) RELEVÂNCIA JURÍDICA: aponte se há conteúdo jurídico (documento, contrato, petição, decisão, lei, print de processo, notificação, boleto, contracheque, RG/CNH etc.) e quais pontos merecem atenção.\n" +
+      "Seja objetivo. Se a imagem NÃO tiver relação jurídica, diga isso claramente ao final para que eu possa perguntar ao usuário o que ele quer que eu analise.",
     "vision",
   );
 }
