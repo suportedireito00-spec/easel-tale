@@ -284,7 +284,15 @@ const PdfScrollReader = ({ url, titulo, onClose, livroId }: Props) => {
   const reader = (
     <div className="fixed inset-0 z-[1300] h-[100dvh] max-h-[100dvh] bg-neutral-900 flex flex-col overflow-hidden">
       {/* Header enxuto */}
-      <div className="flex items-center gap-3 px-4 h-14 shrink-0 bg-neutral-950/90 backdrop-blur border-b border-white/5">
+      <div
+        className="flex items-center gap-3 px-4 shrink-0 bg-neutral-950/95 backdrop-blur border-b border-white/5"
+        style={{
+          paddingTop: 'calc(var(--sai-top, env(safe-area-inset-top, 0px)) + 6px)',
+          paddingBottom: 6,
+          minHeight: 56,
+        }}
+      >
+
         <button
           onClick={onClose}
           className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
