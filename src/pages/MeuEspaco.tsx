@@ -332,13 +332,13 @@ const MeuEspaco = () => {
         <button
           onClick={goBack}
           aria-label="Voltar"
-          className="absolute top-3 left-3 w-11 h-11 rounded-full bg-black/55 backdrop-blur flex items-center justify-center text-white active:scale-95 transition"
+          className="absolute top-[calc(0.75rem+var(--sai-top,env(safe-area-inset-top,0px)))] left-3 w-11 h-11 rounded-full bg-black/55 backdrop-blur flex items-center justify-center text-white active:scale-95 transition"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={() => setCoverPickerOpen(true)}
-          className="absolute top-3 right-3 h-11 px-4 rounded-full bg-black/55 backdrop-blur flex items-center gap-2 text-white text-sm font-medium active:scale-95 transition"
+          className="absolute top-[calc(0.75rem+var(--sai-top,env(safe-area-inset-top,0px)))] right-3 h-11 px-4 rounded-full bg-black/55 backdrop-blur flex items-center gap-2 text-white text-sm font-medium active:scale-95 transition"
         >
           <Camera className="w-4 h-4" />
           Trocar capa
@@ -455,7 +455,7 @@ const MeuEspaco = () => {
       </div>
 
       {/* Minha atividade — calendário + histórico */}
-      <div className="px-5 mt-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+      <div className="px-5 mt-6 pb-[calc(4rem+var(--sai-bottom,env(safe-area-inset-bottom,0px)))]">
         <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Minha atividade</p>
 
         {/* Faixa de dias — hoje à esquerda, retrocedendo */}
