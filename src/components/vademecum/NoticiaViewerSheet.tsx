@@ -8,7 +8,7 @@ import { useIsDesktop } from '@/hooks/use-desktop';
 import { newsImg } from '@/lib/cdnImg';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Noticia } from '@/services/noticiasService';
+import { type Noticia, fetchNoticiaConteudo } from '@/services/noticiasService';
 import NoticiaComentarios from '@/components/vademecum/NoticiaComentarios';
 import ShareSheet from './ShareSheet';
 import { useFavoritoNoticia } from '@/hooks/useNoticiaTracking';
