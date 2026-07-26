@@ -106,10 +106,24 @@ const AdminLeituraNativa = () => {
         });
       }
       if (tipo === 'refino' || tipo === 'completo') {
-        await invokeFn('biblioteca-ocr-mistral', {
-          action: 'refino',
-          livro_id: String(it.id), livro_tabela: it.colecao.table, force: true,
-        });
+        try {
+          await invokeFn('biblioteca-ocr-mistral', {
+            action: 'refino',
+            livro_id: String(it.id), livro_tabela: it.colecao.table, force: true,
+          });
+        } catch (err: any) {
+          const msg = String(err?.message || '');
+          if (msg.includes('conteudo_md vazio') || msg.includes('Rode o OCR primeiro')) {
+            if (!pdf_url) { toast.error('Livro sem OCR e sem PDF disponível'); return; }
+            toast.message('OCR ainda não rodou — disparando OCR + refino…');
+            await invokeFn('biblioteca-ocr-mistral', {
+              livro_id: String(it.id), livro_tabela: it.colecao.table,
+              pdf_url, titulo: it.titulo, force: true,
+            });
+          } else {
+            throw err;
+          }
+        }
       }
       toast.success('Processamento disparado');
     } catch (e: any) {
