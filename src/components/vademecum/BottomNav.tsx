@@ -214,6 +214,8 @@ const BottomNav = () => {
           {/* Chat Jurídico */}
           <button
             onClick={() => { haptic.selection(); setChatOpen(true); }}
+            data-track="bottom_nav_click"
+            data-track-destino="chat"
             className="flex flex-col items-center justify-end py-1.5 text-foreground hover:text-primary transition-colors"
             aria-label="Chat Jurídico"
           >
