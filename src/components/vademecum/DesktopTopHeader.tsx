@@ -30,10 +30,10 @@ const DesktopTopHeader = ({ onAssistenteClick }: Props) => {
   const unreadCount = useUnreadNotifCount();
 
   return (
-    <div className="sticky top-0 z-40 relative w-full overflow-hidden border-b border-primary/30" style={{ height: 104 }}>
+    <div className="sticky top-0 z-40 w-full overflow-hidden border-b border-primary/30" style={{ height: 104 }}>
       {/* Degradê amarelo subindo do rodapé */}
-      <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/35 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/35 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-transparent pointer-events-none" />
 
       {/* Elementos jurídicos decorativos */}
       <div className="absolute inset-0 pointer-events-none">
