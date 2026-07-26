@@ -119,9 +119,11 @@ export default function Assinatura() {
     try {
       const r = await playPurchase(planKey);
       if (!r.ok) {
+        track('subscription_payment_failed', { plano: planKey, erro: r.error ?? 'unknown', metodo: 'play' });
         toast.error(r.error ?? 'Falha na compra');
         return;
       }
+      track('subscription_completed', { plano: planKey, metodo: 'play', valor: playProducts.find(p => p.id === PRODUCT_IDS[planKey])?.price ?? 0 });
       // Handshake pós-compra: força refresh + navega para overlay de boas-vindas
       // (não dependemos só do listener transactionUpdated).
       refreshSubscription();
