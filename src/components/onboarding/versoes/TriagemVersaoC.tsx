@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, Volume2, VolumeX, X } from 'lucide-react';
 import {
@@ -12,16 +12,18 @@ import {
 } from './triagemShared';
 import { useTriagemAudio } from './useTriagemAudio';
 
+const CadastroFeaturesReel = lazy(() => import('../CadastroFeaturesReel'));
+
 type Props = {
   open: boolean;
   onFinished: (r: TriagemResult) => void;
   previewMode?: boolean;
 };
 
-type Step = 'abertura' | 'persona' | 'interesses' | 'dores' | 'nome' | 'whatsapp';
+type Step = 'abertura' | 'persona' | 'interesses' | 'dores' | 'nome' | 'whatsapp' | 'features';
 const CONTENT_STEPS: Step[] = ['persona', 'interesses', 'dores', 'nome', 'whatsapp'];
 
-const CARD_BG: Record<Exclude<Step, 'abertura'>, { grad: string; accent: string; label: string }> = {
+const CARD_BG: Record<Exclude<Step, 'abertura' | 'features'>, { grad: string; accent: string; label: string }> = {
   persona: { grad: 'linear-gradient(140deg, #F5C518 0%, #E0A000 55%, #8B6508 100%)', accent: '#1A1204', label: 'PERFIL' },
   interesses: { grad: 'linear-gradient(140deg, #2DD4A8 0%, #14a37f 55%, #0F4C3A 100%)', accent: '#03170F', label: 'FOCO' },
   dores: { grad: 'linear-gradient(140deg, #E85D3A 0%, #B23A20 55%, #5C1A0F 100%)', accent: '#FFF3EB', label: 'DORES' },
@@ -41,8 +43,9 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
     }
   }, [open]);
 
-  const stepIndex = step === 'abertura' ? -1 : CONTENT_STEPS.indexOf(step);
-  const bg = step === 'abertura' ? CARD_BG.persona : CARD_BG[step];
+  const stepIndex =
+    step === 'abertura' ? -1 : step === 'features' ? CONTENT_STEPS.length - 1 : CONTENT_STEPS.indexOf(step);
+  const bg = step === 'abertura' || step === 'features' ? CARD_BG.persona : CARD_BG[step];
 
   const advance = (patch: Partial<TriagemResult>) => {
     playSfx('whoosh');
@@ -55,8 +58,9 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
     const nx = CONTENT_STEPS[stepIndex + 1];
     if (nx) setStep(nx);
     else {
+      // Última pergunta respondida → entra no reel de funções antes de fechar.
       playSfx('ding');
-      setTimeout(() => onFinished(next), 400);
+      setStep('features');
     }
   };
 
@@ -105,10 +109,23 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
       )}
 
       {/* Stack */}
-      <div className="relative flex-1 flex items-stretch justify-center px-3 pt-3 pb-4 sm:pt-4 sm:pb-6">
+      <div
+        className="relative flex-1 flex items-stretch justify-center px-3 pt-3 sm:pt-4"
+        style={{
+          paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 20px)',
+        }}
+      >
         <AnimatePresence mode="wait">
           {step === 'abertura' ? (
             <AberturaCinematografica key="abertura" onDone={() => advance({})} muted={muted} toggleMute={toggleMute} />
+          ) : step === 'features' ? (
+            <Suspense key="features" fallback={<div className="absolute inset-0 bg-black" />}>
+              <CadastroFeaturesReel
+                nome={data.nome}
+                onDone={() => onFinished(data)}
+                playSfx={playSfx}
+              />
+            </Suspense>
           ) : (
             <motion.div
               key={step}
@@ -117,7 +134,7 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
               exit={{ x: -340, rotate: -6, opacity: 0, scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 190, damping: 24 }}
               className="relative w-full max-w-lg rounded-[36px] overflow-hidden flex flex-col shadow-2xl"
-              style={{ background: bg.grad, color: bg.accent, minHeight: '82dvh' }}
+              style={{ background: bg.grad, color: bg.accent, minHeight: '78dvh' }}
             >
               {/* Textura de filósofos suave no card */}
               <FilosofosTextura />
@@ -129,7 +146,7 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
                 </span>
               </div>
 
-              <CardContent step={step as Exclude<Step, 'abertura'>} data={data} setData={setData} advance={advance} playSfx={playSfx} bg={bg} />
+              <CardContent step={step as Exclude<Step, 'abertura' | 'features'>} data={data} setData={setData} advance={advance} playSfx={playSfx} bg={bg} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -363,7 +380,7 @@ function CardContent({
   playSfx,
   bg,
 }: {
-  step: Exclude<Step, 'abertura'>;
+  step: Exclude<Step, 'abertura' | 'features'>;
   data: TriagemResult;
   setData: React.Dispatch<React.SetStateAction<TriagemResult>>;
   advance: (patch: Partial<TriagemResult>) => void;

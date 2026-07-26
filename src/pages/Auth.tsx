@@ -343,6 +343,14 @@ const AuthFormScreen = ({ onBack }: { onBack: () => void }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [legalOpen, setLegalOpen] = useState<null | 'privacidade' | 'termos'>(null);
 
+  // Pré-carrega o bundle da triagem para abrir sem delay logo após signup.
+  useEffect(() => {
+    if (mode !== 'signup') return;
+    import('@/components/onboarding/CadastroOnboardingOverlay').catch(() => {});
+    import('@/components/onboarding/CadastroFeaturesReel').catch(() => {});
+  }, [mode]);
+
+
   const handleGoogle = async () => {
     setGoogleLoading(true);
     try {
