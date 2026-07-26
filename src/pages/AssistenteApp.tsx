@@ -161,6 +161,8 @@ const AssistenteApp = () => {
               </div>
               <button
                 onClick={handleFalar}
+                data-track="assistente_chat_opened"
+                data-source="landing_card"
                 className="w-full h-14 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-body font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-violet-500/30 active:scale-[0.98] transition-transform"
               >
                 <Sparkles className="w-5 h-5" /> Falar com a IA
