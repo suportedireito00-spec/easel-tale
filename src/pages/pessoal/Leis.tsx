@@ -99,6 +99,7 @@ export default function MinhasLeisPage() {
           ))}
         </div>
       )}
+      <LeiFavoritaArtigosSheet lei={openLei} onClose={() => setOpenLei(null)} />
     </PessoalListLayout>
   );
 }
