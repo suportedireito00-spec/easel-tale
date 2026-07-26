@@ -26,6 +26,7 @@ import { prefetchResenha } from '@/services/atualizacaoService';
 import { prefetchNoticias } from '@/services/noticiasService';
 import { pushRecente } from '@/lib/leisRecentes';
 import { warmCoverCache } from '@/lib/coverLoader';
+import { track } from '@/lib/analyticsEvents';
 
 const HERO_CONFIG = { radar: camaraHero, legislacao: heroImage, noticias: senadoHero } as const;
 
