@@ -271,6 +271,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
   };
 
   const exportPdf = async (msg: Message) => {
+    track('chat_juridico_export_pdf', { message_length: msg.content.length });
     setGenOverlay({ kind: 'pdf', label: 'Gerando PDF' });
     try {
       const doc = (
