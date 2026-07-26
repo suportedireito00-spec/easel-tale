@@ -48,3 +48,12 @@ export async function nativeLogScreen(screenName: string) {
   if (!p) return;
   try { await p.setCurrentScreen({ screenName }); } catch { /* noop */ }
 }
+
+export async function nativeSetUserProperty(name: string, value: string) {
+  const p = await plugin();
+  if (!p) return;
+  try {
+    // @ts-expect-error tipos variam entre versões do plugin
+    await p.setUserProperty?.({ name, value });
+  } catch { /* noop */ }
+}
