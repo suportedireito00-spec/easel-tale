@@ -407,7 +407,16 @@ serve(async (req) => {
         const headingRe = /^(#{1,3})\s+(.+)$/gm;
         let m: RegExpExecArray | null;
         while ((m = headingRe.exec(md))) {
-          sumario.push({ nivel: m[1].length, titulo: m[2].trim(), page: pageNum });
+          const t = m[2].trim().replace(/\*+/g, '').replace(/_{2,}/g, '').trim();
+          if (!t) continue;
+          // Ignora entradas típicas de SUMÁRIO impresso do livro:
+          //  - "Título ..... 39" (dot leader + número)
+          //  - "Alguma coisa 39" (número de página no fim)
+          //  - Cabeçalhos genéricos "Sumário" / "Índice" / "Table of Contents"
+          if (/\.{2,}\s*\d{1,4}\s*$/.test(t)) continue;
+          if (/\s\d{1,4}\s*$/.test(t) && t.length < 120) continue;
+          if (/^(sum[áa]rio|[íi]ndice(\s+geral)?|table of contents|conte[úu]do)$/i.test(t)) continue;
+          sumario.push({ nivel: m[1].length, titulo: t, page: pageNum });
         }
 
         combinedMd += `\n\n<!-- page:${pageNum} -->\n\n` + md;
@@ -726,7 +735,14 @@ async function handleRefino(body: RefinoBody) {
         partes.push(`<!-- page:${p} -->\n\n${md}`);
       }
       const conteudo = partes.join("\n\n");
-      const numero = c.numero ?? idx + 1;
+      // Descarta capítulos-fantasma (título vindo do SUMÁRIO impresso sem página real de conteúdo).
+      // Sem isso o leitor mostra só a capa e "pula" para o próximo capítulo.
+      const textoUtil = conteudo.replace(/<!--[^>]*-->/g, "").replace(/\s+/g, " ").trim();
+      if (textoUtil.length < 40) {
+        console.warn(`[refino] descartando capítulo vazio "${c.titulo}" (páginas ${inicio}-${fim})`);
+        continue;
+      }
+      const numero = capitulos.length + 1;
       capitulos.push({
         numero, titulo: c.titulo,
         capa_md: montarCapaCapitulo({ numero, titulo: c.titulo, epigrafe: c.epigrafe,
@@ -900,17 +916,22 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
   // Fallback: se o AI colapsou tudo em poucos capítulos mas o OCR extraiu um sumário rico,
   // reconstrói os capítulos a partir do sumário extraído (títulos + páginas reais).
   const preliminaresRe = /^(sum[áa]rio|[íi]ndice|apresenta[cç][ãa]o|pref[áa]cio|dedicat[óo]ria|agradecimentos|ficha catalogr[áa]fica|col[oó]f[ãa]o|bibliografia|nota do (autor|editor)|cap[ií]tulo\s*$|em[eé]diato editores)/i;
+  const tocLeaderRe = /\.{2,}\s*\d{1,4}\s*$/;               // "Título .......... 39"
+  const pageSuffixRe = /\s\d{1,4}\s*$/;                       // "11. ACORDO DE ACIONISTAS 39"
   const candidatosExtraidos = (sumarioExtraido || [])
     .filter((s: any) => s && typeof s.page === 'number' && typeof s.titulo === 'string')
-    .filter((s: any) => !preliminaresRe.test(String(s.titulo).trim()))
-    .filter((s: any) => String(s.titulo).trim().length >= 3);
+    .map((s: any) => ({ ...s, titulo: String(s.titulo).replace(/\*+/g, '').trim() }))
+    .filter((s: any) => !preliminaresRe.test(s.titulo))
+    .filter((s: any) => !tocLeaderRe.test(s.titulo))
+    .filter((s: any) => !(pageSuffixRe.test(s.titulo) && s.titulo.length < 120))
+    .filter((s: any) => s.titulo.length >= 3);
   if (candidatosExtraidos.length >= 4 && capitulos.length < Math.max(3, Math.floor(candidatosExtraidos.length * 0.4))) {
     console.warn('[refino] AI devolveu poucos capítulos vs sumário extraído — usando fallback', {
       ai: capitulos.length, extraido: candidatosExtraidos.length,
     });
     capitulos = candidatosExtraidos.map((s: any, i: number) => ({
       numero: i + 1,
-      titulo: String(s.titulo).replace(/\*+/g, '').trim(),
+      titulo: s.titulo,
       pagina_inicio: clampNum(Number(s.page) || 1, 1, totalPaginas),
     }));
   }
