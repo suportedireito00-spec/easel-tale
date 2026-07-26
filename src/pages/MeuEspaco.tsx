@@ -338,7 +338,7 @@ const MeuEspaco = () => {
         </button>
         <button
           onClick={() => setCoverPickerOpen(true)}
-          className="absolute top-3 right-3 h-11 px-4 rounded-full bg-black/55 backdrop-blur flex items-center gap-2 text-white text-sm font-medium active:scale-95 transition"
+          className="absolute top-[calc(0.75rem+var(--sai-top,env(safe-area-inset-top,0px)))] right-3 h-11 px-4 rounded-full bg-black/55 backdrop-blur flex items-center gap-2 text-white text-sm font-medium active:scale-95 transition"
         >
           <Camera className="w-4 h-4" />
           Trocar capa
