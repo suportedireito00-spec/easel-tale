@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Capacitor } from '@capacitor/core';
+import { coletarGeo } from '@/lib/geoDispositivo';
 
 // Registra 1 linha em `user_sessions` por abertura do app (por aba/instância).
 // Append-only: permite contar quantas vezes o usuário acessou o app por dia.
@@ -40,7 +41,14 @@ export function useSessionTracker() {
           user.email?.split('@')[0] ??
           '';
 
+        const geo = await coletarGeo();
+
         const { error } = await supabase.from('user_sessions').insert({
+          pais: geo.pais,
+          uf: geo.uf,
+          cidade: geo.cidade,
+          timezone: geo.timezone,
+          locale: geo.locale,
           user_id: user.id,
           email: user.email ?? null,
           display_name: displayName,
@@ -50,6 +58,18 @@ export function useSessionTracker() {
             typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : null,
         });
         if (!error) sessionStorage.setItem(key, String(Date.now()));
+
+        // Espelha no perfil para consulta rápida no admin.
+        await supabase
+          .from('profiles')
+          .update({
+            pais: geo.pais,
+            uf: geo.uf,
+            cidade: geo.cidade,
+            timezone: geo.timezone,
+            locale: geo.locale,
+          } as any)
+          .eq('id', user.id);
       } catch {
         /* telemetria não deve quebrar UX */
       }
