@@ -209,13 +209,36 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
         className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border"
       >
         <SheetHeader className="px-4 pt-6 pb-4 border-b border-border/50 text-left sticky top-0 bg-background z-10">
-          <SheetTitle className="font-display text-xl font-bold text-foreground truncate">
-            {nome || email || 'Usuário'}
-          </SheetTitle>
-          <p className="font-body text-[14px] text-muted-foreground mt-1 truncate">
-            {email || '—'} {provider ? `· ${provider}` : ''}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="font-display text-xl font-bold text-foreground truncate">
+                {nome || email || 'Usuário'}
+              </SheetTitle>
+              <p className="font-body text-[14px] text-muted-foreground mt-1 truncate">
+                {email || '—'} {provider ? `· ${provider}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setConfirmar('menu')}
+                aria-label="Excluir ou banir usuário"
+                className="w-10 h-10 rounded-full border border-destructive/40 bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 active:bg-destructive/30 transition-colors"
+              >
+                <Trash2 className="w-4.5 h-4.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar"
+                className="w-10 h-10 rounded-full border border-border/60 bg-secondary/40 text-foreground flex items-center justify-center hover:bg-secondary active:bg-secondary/80 transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+          </div>
         </SheetHeader>
+
 
         {loading || !d ? (
           <div className="flex justify-center py-16 text-muted-foreground">
