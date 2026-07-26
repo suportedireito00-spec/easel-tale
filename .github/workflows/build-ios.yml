@@ -530,6 +530,22 @@ jobs:
           console.log(`Patched App target signing for ${appleBundleId} using profile ${profileName}.`);
           NODE
 
+      - name: Copy GoogleService-Info.plist for Firebase Analytics
+        run: |
+          set -euo pipefail
+          if [ -f ios-config/GoogleService-Info.plist ]; then
+            cp ios-config/GoogleService-Info.plist ios/App/App/GoogleService-Info.plist
+            echo "✅ GoogleService-Info.plist copied to ios/App/App"
+            # Validate bundle ID matches the build
+            PLIST_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" ios/App/App/GoogleService-Info.plist 2>/dev/null || true)
+            echo "Plist BUNDLE_ID: ${PLIST_BUNDLE_ID}"
+            if [ -n "${PLIST_BUNDLE_ID}" ] && [ "${PLIST_BUNDLE_ID}" != "${APPLE_BUNDLE_ID}" ]; then
+              echo "::warning::GoogleService-Info.plist BUNDLE_ID (${PLIST_BUNDLE_ID}) differs from build bundle ID (${APPLE_BUNDLE_ID}). Firebase Analytics may not report data."
+            fi
+          else
+            echo "::warning::ios-config/GoogleService-Info.plist not found — skipping Firebase Analytics setup"
+          fi
+
       - name: Add Facebook SDK for iOS install tracking
         run: |
           set -euo pipefail
@@ -594,11 +610,13 @@ jobs:
             echo "No Podfile found; Capacitor iOS is using Swift Package Manager. Skipping CocoaPods FacebookSDK injection."
           fi
 
-          # Override AppDelegate.swift to initialize Facebook SDK
+          # Override AppDelegate.swift to initialize Facebook SDK and Firebase Analytics
           cat > ios/App/App/AppDelegate.swift <<'SWIFT'
           import UIKit
           import Capacitor
           import FBSDKCoreKit
+          import FirebaseCore
+          import FirebaseAnalytics
 
           @UIApplicationMain
           class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -606,6 +624,7 @@ jobs:
               var window: UIWindow?
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                  FirebaseApp.configure()
                   _ = ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
                   ApplicationDelegate.shared.initializeSDK()
                   AppEvents.shared.activateApp()
@@ -625,7 +644,7 @@ jobs:
               }
           }
           SWIFT
-          echo "Overwrote AppDelegate.swift with Facebook SDK init"
+          echo "Overwrote AppDelegate.swift with Facebook SDK + Firebase Analytics init"
 
       - name: Archive
         run: |
