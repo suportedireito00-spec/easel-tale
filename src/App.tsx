@@ -50,6 +50,7 @@ import { RecordingProvider } from "@/contexts/RecordingContext";
 import { GravacaoFlutuante } from "@/components/GravacaoFlutuante";
 import { GeofencePresenceBanner } from "@/components/GeofencePresenceBanner";
 import { ReminderInAppBanner } from "@/components/ReminderInAppBanner";
+import HorusTakeoverNoticeDialog from "@/components/horus/HorusTakeoverNoticeDialog";
 
 // Eagerly loaded (critical path)
 import Index from "./pages/Index.tsx";
