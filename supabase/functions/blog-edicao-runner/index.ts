@@ -328,7 +328,7 @@ Escreva um artigo COMPLETO, profundo e envolvente. Retorne APENAS JSON válido (
   "conteudo_md": "Artigo em Markdown puro, começando com uma introdução envolvente. Use ## para seções, ### para subseções, negrito, listas, citações relevantes. NÃO inclua H1 no início (o app renderiza o título). NÃO inclua imagem no markdown. Cite artigos, autores e casos quando pertinente. Português BR."
 }`;
 
-    const raw = await callGemini(geminiKey, artPrompt, cfg.modelo_texto || "gemini-2.5-flash-lite", 8192, {
+    const raw = await callGemini(geminiKey, artPrompt, cfg.modelo_texto || "gemini-flash-latest", 8192, {
       functionName: "blog-edicao-runner",
       triggerType: "auto",
     });

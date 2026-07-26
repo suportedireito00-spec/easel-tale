@@ -94,7 +94,7 @@ serve(async (req) => {
       ? `\n\n## Pesquisa de Fontes (use como base factual):\n${searchContent}\n\nFontes encontradas:\n${citations.map((c, i) => `[${i + 1}] ${c}`).join("\n")}`
       : "";
 
-    const geminiRes = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`,
+    const geminiRes = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

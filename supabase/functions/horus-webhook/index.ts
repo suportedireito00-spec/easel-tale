@@ -790,10 +790,10 @@ function normalizeGeminiTextModel(model: unknown): string | null {
   if (/-latest$/i.test(bare) || /gemini-3(\.|-)/i.test(bare) ||
       /gemini-2\.5-pro/i.test(bare) ||
       /gemini-2\.5-flash(?!-lite)(?!-image)(?!-preview-tts)/i.test(bare)) {
-    console.warn(`[horus] modelo "${raw}" bloqueado pela política — usando gemini-2.5-flash-lite`);
-    return "gemini-2.5-flash-lite";
+    console.warn(`[horus] modelo "${raw}" bloqueado pela política — usando gemini-flash-latest`);
+    return "gemini-flash-latest";
   }
-  if (/flash-lite/i.test(bare)) return "gemini-2.5-flash-lite";
+  if (/flash-lite/i.test(bare)) return "gemini-flash-latest";
   return null;
 }
 
@@ -819,7 +819,7 @@ async function askLovableGateway(history: Array<{ role: string; content: string 
       "Lovable-API-Key": lovableKey,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
+      model: "google/gemini-flash-latest",
       messages,
       temperature: Number(agent?.temperatura ?? 0.6),
       max_tokens: Number(agent?.max_tokens ?? 800),

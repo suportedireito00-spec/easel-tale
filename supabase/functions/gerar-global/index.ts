@@ -61,7 +61,7 @@ function buildPrompt(modo: string, artigo: { numero: string; caput: string; text
 
 async function callGemini(keys: string[], prompt: string, system: string): Promise<{ text: string | null; rateLimited: boolean }> {
   const { logAiCall } = await import("../_shared/ai-log.ts");
-  const model = "gemini-2.5-flash-lite";
+  const model = "gemini-flash-latest";
   const startedAt = Date.now();
   let success = false, errMsg: string | undefined;
   let inputUnits = 0, outputUnits = 0;

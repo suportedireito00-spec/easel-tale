@@ -56,7 +56,7 @@ Termo de busca sugerido: "${q}"`,
       tools: [{ google_search: {} }],
     };
 
-    const groundResp = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`,
+    const groundResp = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,7 +77,7 @@ Termo de busca sugerido: "${q}"`,
       grounding?.groundingChunks?.map((c: any) => c?.web?.uri).filter(Boolean) ?? [];
 
     // 2) Estrutura em JSON com um segundo modelo (sem tool)
-    const structureResp = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`,
+    const structureResp = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

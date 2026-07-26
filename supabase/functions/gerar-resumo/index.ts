@@ -46,7 +46,7 @@ async function fetchArticleText(tabelaNome: string, artigoNumero: string): Promi
 
 async function callGemini(prompt: string): Promise<string> {
   const { logAiCall } = await import("../_shared/ai-log.ts");
-  const model = "gemini-2.5-flash-lite";
+  const model = "gemini-flash-latest";
   const startedAt = Date.now();
   let success = true, errMsg: string | undefined;
   let inputUnits = 0, outputUnits = 0;

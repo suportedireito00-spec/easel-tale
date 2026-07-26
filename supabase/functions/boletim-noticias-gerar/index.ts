@@ -25,7 +25,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
-// gemini-2.5-flash-lite foi descontinuado no endpoint direto (generativelanguage.googleapis.com).
+// gemini-flash-latest foi descontinuado no endpoint direto (generativelanguage.googleapis.com).
 // Usar o alias "-latest" mantido pelo Google.
 const TEXT_MODEL = "gemini-flash-lite-latest";
 const BUCKET_AUDIO = "boletins-audio";
