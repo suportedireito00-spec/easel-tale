@@ -1,10 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpenText, ScanEye, Sparkles, ChevronRight, Gamepad2, FileText, Newspaper, Mail, Library, Brain, CloudDownload, Film, NotebookText, Clapperboard, MapPin, Mic, FileSignature, Radar } from 'lucide-react';
+import { BookOpenText, ScanEye, ChevronRight, Newspaper, Film, NotebookText, Clapperboard, MapPin, Radar } from 'lucide-react';
 
 import { motion } from 'framer-motion';
-import { useState, lazy, Suspense } from 'react';
-// Overlays only mount when opened — lazy so the tools page paints faster.
-const AssistenteOverlay = lazy(() => import('@/components/vademecum/AssistenteOverlay'));
+import { lazy, Suspense, useState } from 'react';
 const DicionarioJuridico = lazy(() => import('@/components/ferramentas/DicionarioJuridico'));
 import DesktopPageLayout from '@/components/layout/DesktopPageLayout';
 import { PageHeader } from '@/components/vademecum/PageHeader';
@@ -36,18 +34,6 @@ const TOOLS = [
     icon: MapPin,
   },
   {
-    id: 'assistente',
-    label: 'Assistente IA',
-    desc: 'IA jurídica para tirar dúvidas',
-    icon: Sparkles,
-  },
-  {
-    id: 'peticao-inicial',
-    label: 'Petição Inicial',
-    desc: 'Gere petições com IA e jurisprudência real do STF/STJ',
-    icon: FileSignature,
-  },
-  {
     id: 'tematica',
     label: 'Temática Jurídica',
     desc: 'Filmes, séries e documentários para juristas',
@@ -71,42 +57,11 @@ const TOOLS = [
     desc: 'Notícias jurídicas e atualizações',
     icon: Newspaper,
   },
-  {
-    id: 'newsletter',
-    label: 'Newsletter',
-    desc: 'Receba um resumo jurídico diário no e-mail',
-    icon: Mail,
-  },
-  {
-    id: 'biblioteca',
-    label: 'Biblioteca',
-    desc: 'Livros e materiais de estudo para leitura',
-    icon: Library,
-  },
-  {
-    id: 'artigos-educacionais',
-    label: 'Artigos educacionais',
-    desc: 'Conteúdos complementares e atualizações educacionais',
-    icon: Brain,
-  },
-  {
-    id: 'gravar-aula',
-    label: 'Gravar aula',
-    desc: 'Grave aulas longas com resumo automático por IA',
-    icon: Mic,
-  },
-  {
-    id: 'offline',
-    label: 'Modo Offline',
-    desc: 'Baixe leis para consultar sem internet',
-    icon: CloudDownload,
-  },
 ];
 
 
 const Ferramentas = () => {
   const navigate = useNavigate();
-  const [assistenteOpen, setAssistenteOpen] = useState(false);
   const [dicionarioOpen, setDicionarioOpen] = useState(false);
 
   const handleToolClick = (id: string) => {
@@ -114,19 +69,11 @@ const Ferramentas = () => {
       case 'dicionario': navigate('/ferramentas/dicionario'); break;
       case 'radar360': navigate('/radar-360'); break;
       case 'radares': navigate('/radares'); break;
-      case 'assistente': setAssistenteOpen(true); break;
       case 'resumos-juridicos': navigate('/resumos-juridicos'); break;
       case 'boletins': navigate('/boletins'); break;
       case 'noticias': navigate('/noticias'); break;
-      case 'newsletter': navigate('/newsletter'); break;
-      case 'gerador-post': navigate('/gerador-post'); break;
-      case 'biblioteca': navigate('/biblioteca'); break;
-      case 'artigos-educacionais': navigate('/aprender'); break;
-      case 'offline': navigate('/modo-offline'); break;
       case 'locais': navigate('/ferramentas/locais'); break;
       case 'tematica': navigate('/tematica-juridica'); break;
-      case 'gravar-aula': navigate('/anotacoes/audio'); break;
-      case 'peticao-inicial': navigate('/ferramentas/peticao-inicial'); break;
     }
   };
 
@@ -181,7 +128,6 @@ const Ferramentas = () => {
       </div>
 
       <Suspense fallback={null}>
-        {assistenteOpen && <AssistenteOverlay open={assistenteOpen} onClose={() => setAssistenteOpen(false)} />}
         {dicionarioOpen && <DicionarioJuridico open={dicionarioOpen} onClose={() => setDicionarioOpen(false)} />}
       </Suspense>
     </DesktopPageLayout>
