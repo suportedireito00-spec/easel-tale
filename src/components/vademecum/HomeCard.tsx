@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 
-interface HomeCardProps {
+interface HomeCardProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: LucideIcon;
   label: string;
   sublabel: string;
@@ -16,13 +16,14 @@ interface HomeCardProps {
  * Card padrão usado em Categorias, Em Alta e Áreas.
  * Garante proporção, ícone, tipografia e espaçamento idênticos.
  */
-const HomeCardImpl = ({ icon: Icon, label, sublabel, color, delay = 0, onClick, className = '' }: HomeCardProps) => (
+const HomeCardImpl = ({ icon: Icon, label, sublabel, color, delay = 0, onClick, className = '', ...rest }: HomeCardProps) => (
   <motion.button
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
     onClick={onClick}
     className={`group relative flex flex-col items-start justify-between w-full aspect-[1/0.50] p-4 rounded-2xl bg-card border border-border/60 shadow-sm active:scale-[0.97] transition text-left ${className}`}
+    {...rest}
   >
     <div className="absolute top-2.5 right-2.5">
       <ChevronRight className="w-4 h-4 text-muted-foreground" />
