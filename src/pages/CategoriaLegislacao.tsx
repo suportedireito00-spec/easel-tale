@@ -2634,7 +2634,7 @@ const CategoriaLegislacao = () => {
     return (
       <div className="min-h-dvh bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <PremiumGate open={showPremiumGate} onClose={() => setShowPremiumGate(false)} feature="radar" description={premiumGateDesc} />
+        <PremiumGate open={showPremiumGate} onClose={() => setShowPremiumGate(false)} feature={premiumGateFeature} description={premiumGateDesc} />
       </div>
     );
   }
