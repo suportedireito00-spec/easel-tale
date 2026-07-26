@@ -16,7 +16,7 @@ const ICONS: Partial<Record<CategoriaId, JSX.Element>> = {
 
 export default function DicionarioCategoryChips({ active, onChange, counts }: Props) {
   return (
-    <div className="-mx-4 sm:mx-0 overflow-x-auto no-scrollbar">
+    <div className="-mx-4 sm:mx-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex gap-2 px-4 sm:px-0 pb-1">
         {CATEGORIAS.map((c) => {
           const isActive = c.id === active;
