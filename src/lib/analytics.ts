@@ -110,6 +110,7 @@ export function grantConsent() {
   loadGtagScript();
   initGoogleAds();
   fbGrantConsent();
+  flushOfflineQueue();
 }
 
 export function denyConsent() {
