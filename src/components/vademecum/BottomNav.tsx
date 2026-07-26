@@ -405,6 +405,10 @@ const BottomNav = () => {
                       onPointerEnter={() => { if (f.prefetch) prefetchRoute(f.prefetch); }}
                       onFocus={() => { if (f.prefetch) prefetchRoute(f.prefetch); }}
                       onClick={() => handleFerramenta(f.action)}
+                      data-track="ferramenta_abrir"
+                      data-ferramenta-id={f.id}
+                      data-ferramenta-nome={f.label}
+                      data-ferramenta-origin="bottom_sheet"
                       className="w-full flex items-center gap-4 px-4 py-5 min-h-[84px] text-left hover:bg-secondary/60 active:bg-secondary transition-colors"
                     >
                       <div className="w-14 h-14 rounded-2xl bg-background flex items-center justify-center text-primary shrink-0">
