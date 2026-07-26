@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { pdf, Document, Page, Text as PdfText, StyleSheet } from '@react-pdf/renderer';
+import { track } from '@/lib/analyticsEvents';
 import {
   FlipFlashcards, QuestoesRunner, MapaMentalCanvas, TermosViewer, ShareSheet,
   type Flashcard, type Questao, type MapaNode, type Termo,
