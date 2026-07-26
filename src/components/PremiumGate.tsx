@@ -147,6 +147,14 @@ const PremiumGate = ({
                   Começar 7 dias grátis
                 </button>
 
+                {/* Ver mais benefícios */}
+                <button
+                  onClick={() => setShowBenefits(true)}
+                  className="w-full py-3 rounded-xl border border-border bg-secondary/50 text-foreground font-semibold text-sm hover:bg-secondary transition-colors active:scale-[0.98] mb-3"
+                >
+                  Ver mais benefícios
+                </button>
+
                 {/* Secondary Action */}
                 <button
                   onClick={() => { onClose(); navigate('/assinatura'); }}
@@ -157,10 +165,76 @@ const PremiumGate = ({
               </div>
             </div>
           </motion.div>
+
+          {/* Camada de benefícios */}
+          <AnimatePresence>
+            {showBenefits && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+                className="fixed inset-x-0 bottom-0 z-[10052] max-h-[88dvh] bg-card border-t border-border rounded-t-3xl overflow-hidden flex flex-col"
+              >
+                <div className="bg-primary py-3 px-4 flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowBenefits(false)}
+                    aria-label="Voltar"
+                    className="p-1.5 rounded-full hover:bg-primary-foreground/10 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-primary-foreground" />
+                  </button>
+                  <span className="flex-1 text-center text-[10px] font-extrabold tracking-[0.2em] uppercase text-primary-foreground">
+                    Tudo que você desbloqueia
+                  </span>
+                  <button
+                    onClick={() => { setShowBenefits(false); onClose(); }}
+                    aria-label="Fechar"
+                    className="p-1.5 rounded-full hover:bg-primary-foreground/10 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-primary-foreground" />
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 space-y-3 max-w-md mx-auto w-full">
+                  {BENEFICIOS_PREMIUM.map((b) => {
+                    const BIcon = b.icon;
+                    return (
+                      <div key={b.title} className="flex gap-3 items-start">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                          <BIcon className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground leading-tight">{b.title}</p>
+                          <p className="text-xs text-muted-foreground leading-snug mt-0.5">{b.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="shrink-0 border-t border-border px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-card max-w-md mx-auto w-full">
+                  <button
+                    onClick={() => { setShowBenefits(false); onClose(); navigate('/assinatura?plano=anual&trial=1'); }}
+                    className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary-light transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
+                  >
+                    Começar 7 dias grátis
+                  </button>
+                  <button
+                    onClick={() => { setShowBenefits(false); onClose(); navigate('/assinatura'); }}
+                    className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Ver outros planos
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>
   );
+
 
   return createPortal(content, document.body);
 };
