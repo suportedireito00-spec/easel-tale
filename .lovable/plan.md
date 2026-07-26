@@ -1,57 +1,70 @@
-## Problemas identificados
+## Plano
 
-1. **Código do QR expira em menos de 1 segundo** — hoje o `expires_at` padrão da tabela é 3 minutos, mas o desktop está mostrando "CÓDIGO EXPIRADO" quase instantâneo. Isso acontece porque o `poll` em `desktop-link` deleta o registro e devolve `expired` sem re-checar corretamente o clock (e o cliente também dispara `expired` via countdown se `expiresAt = 0`). Além disso, o requisito é **1 minuto de duração**.
-2. **Depois de "Confirmar login" no celular, o desktop não entra** — o `poll` devolve `token_hash` e o desktop chama `supabase.auth.verifyOtp({ type: 'magiclink', token_hash })`. Esse fluxo funciona só se o token gerado por `admin.generateLink({type:'magiclink'})` for verificado com `type:'email'` (o hashed_token do magiclink é da família OTP de email). Provavelmente é isso que está silenciando o login — o `verifyOtp` retorna erro, mas o toast some rápido.
-3. **Sessão de 24h no desktop** — hoje não há limite, é a sessão padrão do Supabase. Precisamos revogar automaticamente depois de 24h e exigir novo QR.
-4. **Um celular por conta** — hoje qualquer sessão desktop coexiste; precisamos que ao gerar/scannear um novo QR, a sessão desktop anterior seja invalidada e o desktop antigo seja deslogado automaticamente.
+Vou corrigir o pipeline de OCR/refino da leitura nativa para impedir que capa, índice e subtítulos soltos virem capítulos no sumário.
 
-## O que vou fazer
+### Diagnóstico confirmado
 
-### 1. Ajustar a expiração do QR para 60s
-- Migration: alterar default de `desktop_link_tokens.expires_at` para `now() + interval '1 minute'`.
-- `desktop-link/create`: definir explicitamente `expires_at` em `+60s` (não confiar só no default) e devolver ISO ao cliente.
-- `DesktopQrLogin.tsx`: inicializar `remaining = 60`, e **não** disparar `expired` até `expiresAt` estar preenchido (guard contra o estado inicial).
+- O livro **Orçamento Público** está salvo em `biblioteca_leitura_nativa` como `livro_tabela='biblioteca_estudos'` e `livro_id='1169'`.
+- O registro atual tem `capitulos_json` com um primeiro “capítulo” **ORÇAMENTO PÚBLICO** nas páginas `[1,2]`, mas com `conteudo_md` vazio.
+- O `sumario_json` atual inclui itens como **ÍNDICE**, subtítulos internos e artigos como se fossem capítulos.
+- No código atual, o OCR coleta headings diretamente do Markdown do Mistral; depois o refino usa essa lista como pista forte. Isso permite que headings de capa/índice e subtítulos internos contaminem o sumário final.
+- O leitor (`LeitorNativo`) apenas renderiza `capitulos_json`; então o erro precisa ser corrigido principalmente no backend/refino.
 
-### 2. Corrigir a entrada no desktop após confirmar no celular
-- Trocar a verificação no `DesktopQrLogin.tsx` para `supabase.auth.verifyOtp({ type: 'email', token_hash })` (formato correto para o `hashed_token` devolvido pelo `admin.generateLink('magiclink')`).
-- Fallback: se der erro, cair para o `action_link` (usar `setSession` a partir dos tokens contidos no link) — o `desktop-link` já persiste `action_link`; vou expô-lo no `poll` como segundo caminho.
-- Mostrar o erro real na tela em vez de só um toast rápido, para não perder o feedback.
+### O que vou implementar
 
-### 3. Sessão desktop de 24h + apenas 1 desktop por conta
-Criar uma tabela nova `desktop_sessions`:
+1. **Etapa 1 — Classificador determinístico de páginas**
+   - Antes do refino por IA, classificar cada página como:
+     - `capa`
+     - `indice`
+     - `preliminar`
+     - `conteudo`
+   - Páginas de capa/índice não poderão virar capítulo nem aparecer no sumário do leitor.
 
-```text
-desktop_sessions
-  id              uuid pk
-  user_id         uuid  (fk auth.users, on delete cascade)
-  desktop_id      uuid  (gerado no browser e salvo em localStorage)
-  created_at      timestamptz default now()
-  expires_at      timestamptz  (created_at + 24h)
-  revoked_at      timestamptz null
-  user_agent      text
-```
+2. **Etapa 2 — Filtro forte de candidatos a capítulo**
+   - Aceitar como capítulo apenas headings que tenham conteúdo real logo abaixo ou que sejam claramente início de seção principal.
+   - Rejeitar automaticamente:
+     - título igual ao nome do livro em página inicial
+     - `ÍNDICE`, `SUMÁRIO`, `APRESENTAÇÃO`, etc.
+     - headings de artigos legais isolados, ex.: `Art. 165`, `Art. 1º (...)`
+     - subtítulos curtos internos, ex.: `Exclusividade`, `Transparência`, `Unidade`, quando aparecerem dentro de uma seção maior
+     - capítulos com `conteudo_md` vazio ou quase vazio
 
-Fluxo:
-- Ao carregar o `DesktopQrLogin`, o desktop gera/lê um `desktop_id` em `localStorage`.
-- No `action: 'create'` do QR passamos `desktop_id`; ele é salvo no `desktop_link_tokens`.
-- No `action: 'claim'` (celular confirma), o edge function:
-  1. **Revoga todas as sessões desktop anteriores desse `user_id`** (`update ... set revoked_at = now()` onde `revoked_at is null`).
-  2. Insere nova linha em `desktop_sessions` para `(user_id, desktop_id)` com `expires_at = now() + 24h`.
-- Depois que o desktop faz `verifyOtp` com sucesso, guarda o `desktop_session_id` em localStorage.
-- **Watchdog no desktop** (novo hook `useDesktopSessionGuard`, montado no layout autenticado do desktop): a cada 30s faz `select` da própria linha (`desktop_session_id`); se `revoked_at is not null` ou `expires_at < now()` → `supabase.auth.signOut()` local e volta pra `/auth` com toast "Sessão encerrada — este computador foi desconectado porque outro dispositivo escaneou o QR" ou "Sessão de 24h expirada, escaneie novamente".
-- RLS: `select` liberado para o próprio `user_id`; inserção/update só via service_role (edge function).
+3. **Etapa 3 — Refino em “agentes”/passos separados**
+   - Reorganizar o refino em etapas explícitas:
+     - agente de limpeza de OCR por página
+     - agente de identificação de estrutura do livro
+     - agente de validação do sumário
+     - agente de montagem final dos capítulos
+   - Cada etapa terá validação determinística antes de seguir para a próxima.
 
-### 4. Limpeza
-- Cron/edge existente ou trigger: nada novo — o watchdog cobre o 24h, mas incluo um `delete from desktop_sessions where expires_at < now() - interval '7 days'` no `create` para não acumular lixo.
+4. **Etapa 4 — Validador final do `capitulos_json`**
+   - Antes de salvar no banco, validar:
+     - nenhum capítulo vazio
+     - nenhum capítulo iniciando em página classificada como índice/capa
+     - páginas em ordem crescente
+     - títulos limpos e sem numeração duplicada indevida
+     - quantidade mínima de texto útil por capítulo
+   - Se o sumário gerado pela IA falhar, usar fallback seguro: agrupar por páginas de conteúdo reais em vez de salvar capítulos quebrados.
 
-## Arquivos afetados
+5. **Etapa 5 — Defesa no leitor**
+   - Ajustar o `LeitorNativo` para não renderizar capa de capítulo quando o capítulo não tiver páginas/conteúdo real.
+   - Isso evita que registros antigos ainda mostrem “capítulo fantasma” enquanto o livro não for reextraído.
 
-- `supabase/migrations/<novo>.sql` — altera default do TTL, cria `desktop_sessions` + RLS + grants.
-- `supabase/functions/desktop-link/index.ts` — TTL 60s explícito, aceita `desktop_id` no `create`, revoga sessões anteriores e cria nova no `claim`, expõe `action_link` no `poll` como fallback.
-- `src/components/auth/DesktopQrLogin.tsx` — `remaining=60`, guarda `desktop_id` em localStorage, `verifyOtp` com `type:'email'` + fallback via `action_link`, salva `desktop_session_id`, mostra erro visível.
-- `src/hooks/useDesktopSessionGuard.tsx` — novo, faz polling e força signOut.
-- `src/App.tsx` (ou o layout desktop autenticado) — monta o guard só em desktop autenticado.
+6. **Etapa 6 — Reprocessar e validar o livro afetado**
+   - Forçar nova extração/refino do livro **Orçamento Público** (`1169`).
+   - Conferir no banco se:
+     - o primeiro capítulo real não é mais capa/índice
+     - `ÍNDICE` não aparece como capítulo
+     - os capítulos têm `conteudo_md` preenchido
+     - o sumário do leitor ficou limpo.
 
-## Fora de escopo
+### Arquivos principais
 
-- Não mexo em login mobile, Google/Apple, biometria, nem no fluxo `/desktop-link/:token` além do que for necessário pra passar o `desktop_id` (aliás, o `desktop_id` é salvo no `create`, então o celular não precisa saber dele).
+- `supabase/functions/biblioteca-ocr-mistral/index.ts`
+  - OCR, limpeza, identificação de sumário e montagem de capítulos.
+- `src/components/biblioteca/LeitorNativo.tsx`
+  - Renderização final do sumário/capítulos no app.
+
+### Resultado esperado
+
+O OCR pode continuar usando o Mistral para extrair texto, mas o refino não vai mais confiar cegamente nos headings extraídos. O livro passará por validação em camadas antes de salvar, reduzindo os erros de sumário, capítulos vazios e páginas puladas.

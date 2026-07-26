@@ -404,18 +404,12 @@ serve(async (req) => {
           img.imageBase64 = undefined;
         }
 
+        const pageClass = classificarPaginaLivro(md, pageNum);
         const headingRe = /^(#{1,3})\s+(.+)$/gm;
         let m: RegExpExecArray | null;
         while ((m = headingRe.exec(md))) {
           const t = m[2].trim().replace(/\*+/g, '').replace(/_{2,}/g, '').trim();
-          if (!t) continue;
-          // Ignora entradas típicas de SUMÁRIO impresso do livro:
-          //  - "Título ..... 39" (dot leader + número)
-          //  - "Alguma coisa 39" (número de página no fim)
-          //  - Cabeçalhos genéricos "Sumário" / "Índice" / "Table of Contents"
-          if (/\.{2,}\s*\d{1,4}\s*$/.test(t)) continue;
-          if (/\s\d{1,4}\s*$/.test(t) && t.length < 120) continue;
-          if (/^(sum[áa]rio|[íi]ndice(\s+geral)?|table of contents|conte[úu]do)$/i.test(t)) continue;
+          if (!aceitarHeadingComoCandidato(t, m[1].length, pageNum, pageClass)) continue;
           sumario.push({ nivel: m[1].length, titulo: t, page: pageNum });
         }
 
@@ -611,8 +605,8 @@ function tryDriveAltUrl(url: string): string | null {
 // ============================================================
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL_FAST = "google/gemini-2.5-flash-lite";
-const MODEL_PRO = "google/gemini-2.5-flash-lite";
+const MODEL_FAST = "google/gemini-flash-latest";
+const MODEL_PRO = "google/gemini-flash-latest";
 
 interface RefinoBody { action: "refino"; livro_id: string; livro_tabela: string; force?: boolean; }
 
@@ -654,14 +648,20 @@ async function handleRefino(body: RefinoBody) {
     // Amostra em três pontos (início/meio/fim) para o sumário canônico —
     // livros com índice no fim ou preliminares longas não ficam com "Conteúdo" único.
     const amostragem = amostrarPaginas(pages);
+    const pageClasses = pages.map((p, i) => classificarPaginaLivro(p, i + 1));
+    const paginasNaoCapitulo = pageClasses
+      .filter((p) => p.kind !== "conteudo")
+      .map((p) => p.page);
     const sumarioExtraido = Array.isArray(row.sumario_json) ? (row.sumario_json as any[]) : [];
+    const sumarioExtraidoFiltrado = filtrarCandidatosSumario(sumarioExtraido, pageClasses);
     const sumario = validarERepararSumario(
-      await gerarSumarioCanonico(amostragem, pages.length, sumarioExtraido),
+      await gerarSumarioCanonico(amostragem, pages.length, sumarioExtraidoFiltrado),
       pages,
-      sumarioExtraido,
+      sumarioExtraidoFiltrado,
+      pageClasses,
     );
     const prelim = new Set<number>(
-      (sumario.preliminaresPaginas ?? []).filter((n) => Number.isInteger(n) && n >= 1 && n <= pages.length)
+      unirPaginas(sumario.preliminaresPaginas ?? [], paginasNaoCapitulo, pages.length)
     );
     const preliminaresMd = pages.map((p, i) => prelim.has(i + 1) ? p : null).filter(Boolean).join("\n\n---\n\n");
 
@@ -737,8 +737,7 @@ async function handleRefino(body: RefinoBody) {
       const conteudo = partes.join("\n\n");
       // Descarta capítulos-fantasma (título vindo do SUMÁRIO impresso sem página real de conteúdo).
       // Sem isso o leitor mostra só a capa e "pula" para o próximo capítulo.
-      const textoUtil = conteudo.replace(/<!--[^>]*-->/g, "").replace(/\s+/g, " ").trim();
-      if (textoUtil.length < 40) {
+      if (!temTextoUtil(conteudo)) {
         console.warn(`[refino] descartando capítulo vazio "${c.titulo}" (páginas ${inicio}-${fim})`);
         continue;
       }
@@ -750,6 +749,36 @@ async function handleRefino(body: RefinoBody) {
         paginas: [inicio, fim], conteudo_md: conteudo,
       });
     }
+    if (!capitulos.length) {
+      console.warn("[refino] nenhum capítulo válido após validação; criando fallback por conteúdo real");
+      const partes: string[] = [];
+      let inicioFallback: number | null = null;
+      let fimFallback: number | null = null;
+      for (let p = 1; p <= cleaned.length; p++) {
+        if (prelim.has(p)) continue;
+        const md = cleaned[p - 1];
+        if (!temTextoUtil(md)) continue;
+        if (inicioFallback === null) inicioFallback = p;
+        fimFallback = p;
+        partes.push(`<!-- page:${p} -->\n\n${md}`);
+      }
+      const conteudoFallback = partes.join("\n\n");
+      if (inicioFallback !== null && fimFallback !== null && temTextoUtil(conteudoFallback, 120)) {
+        capitulos.push({
+          numero: 1,
+          titulo: "Conteúdo",
+          capa_md: montarCapaCapitulo({
+            numero: 1,
+            titulo: "Conteúdo",
+            totalPaginas: fimFallback - inicioFallback + 1,
+            totalPalavras: conteudoFallback.split(/\s+/).length,
+          }),
+          paginas: [inicioFallback, fimFallback],
+          conteudo_md: conteudoFallback,
+        });
+      }
+    }
+
     const conteudoFinal = capitulos.map((c) => `${c.capa_md}\n\n${c.conteudo_md}`).join("\n\n---\n\n");
 
     // Um único UPDATE final: grava conteúdo + marca refino/status como pronto
@@ -864,6 +893,106 @@ interface SumarioCanonico {
   preliminaresPaginas?: number[];
 }
 
+type PageClassificacao = {
+  page: number;
+  kind: "capa" | "indice" | "preliminar" | "conteudo";
+  reason: string;
+};
+
+function classificarPaginaLivro(md: string, page: number): PageClassificacao {
+  const linhas = String(md || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const primeiras = linhas.slice(0, 30);
+  const texto = normalizarTexto(linhas.join("\n"));
+  const headingLines = linhas.filter((l) => /^#{1,6}\s+/.test(l));
+  const bodyText = linhas
+    .filter((l) => !/^#{1,6}\s+/.test(l))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (isPaginaIndiceOriginal(md)) return { page, kind: "indice", reason: "sumario_impresso" };
+
+  const temCabecalhoPreliminar = primeiras.some((l) =>
+    /^#{0,6}\s*(sum[áa]rio|[íi]ndice|table of contents|apresenta[cç][ãa]o|pref[áa]cio|ficha catalogr[áa]fica|dedicat[óo]ria|agradecimentos)\b/i.test(l),
+  );
+  if (temCabecalhoPreliminar) return { page, kind: "preliminar", reason: "cabecalho_preliminar" };
+
+  // Capa/folha de rosto: início do PDF, pouco texto corrido e título grande isolado.
+  const poucosParagrafos = bodyText.length < 220;
+  const soTitulos = headingLines.length > 0 && bodyText.length < 120;
+  const pareceCapa = page <= 2 && (soTitulos || (poucosParagrafos && linhas.length <= 12)) &&
+    !/\b(art\.?|cap[ií]tulo|se[cç][ãa]o|lei|constitui[cç][aã]o|or[cç]amento|controle|princ[ií]pio)\b.{40,}/i.test(md);
+  if (pareceCapa) return { page, kind: "capa", reason: "inicio_sem_texto_corrido" };
+
+  if (page <= 3 && texto.includes("todos os direitos reservados")) {
+    return { page, kind: "preliminar", reason: "creditos_editoriais" };
+  }
+
+  return { page, kind: "conteudo", reason: "texto_util" };
+}
+
+function aceitarHeadingComoCandidato(tituloRaw: string, nivel: number, page: number, pageClass: PageClassificacao): boolean {
+  const titulo = limparTituloCandidato(tituloRaw);
+  if (!titulo) return false;
+  if (pageClass.kind !== "conteudo") return false;
+  if (!tituloCapituloAceitavel(titulo, page, [pageClass])) return false;
+  // Headings profundos quase sempre são subtítulos internos no material jurídico.
+  if (nivel >= 3 && !/^(cap[ií]tulo|parte|t[ií]tulo|se[cç][ãa]o)\b/i.test(titulo)) return false;
+  return true;
+}
+
+function filtrarCandidatosSumario(sumarioExtraido: any[] = [], pageClasses: PageClassificacao[] = []) {
+  const candidatos = (sumarioExtraido || [])
+    .filter((s: any) => s && typeof s.page === "number" && typeof s.titulo === "string")
+    .map((s: any) => ({ ...s, titulo: limparTituloCandidato(String(s.titulo)) }))
+    .filter((s: any) => nivelEstruturalAceitavel(s))
+    .filter((s: any) => tituloCapituloAceitavel(s.titulo, Number(s.page), pageClasses))
+    .filter((s: any, idx: number, arr: any[]) =>
+      arr.findIndex((x: any) => normalizarTexto(x.titulo) === normalizarTexto(s.titulo) && Number(x.page) === Number(s.page)) === idx,
+    );
+  const temEstruturaNumerada = candidatos.filter((s: any) => tituloComecaComMarcadorEstrutural(s.titulo)).length >= 3;
+  return temEstruturaNumerada
+    ? candidatos.filter((s: any) => tituloComecaComMarcadorEstrutural(s.titulo) || Number(s.nivel || 1) <= 1)
+    : candidatos;
+}
+
+function nivelEstruturalAceitavel(s: any): boolean {
+  const nivel = Number(s?.nivel || 1);
+  const titulo = String(s?.titulo || "");
+  if (nivel <= 1) return true;
+  return tituloComecaComMarcadorEstrutural(titulo);
+}
+
+function tituloComecaComMarcadorEstrutural(titulo: string): boolean {
+  return /^\s*(\d{1,3}(?:\.\d{1,3})*\s*[.\-–—)]\s+|cap[ií]tulo\s+[\wIVXLCDM\d]+\b|parte\s+[\wIVXLCDM\d]+\b|t[ií]tulo\s+[\wIVXLCDM\d]+\b|se[cç][ãa]o\s+[\wIVXLCDM\d]+\b)/i.test(titulo);
+}
+
+function limparTituloCandidato(raw: string): string {
+  return String(raw || "")
+    .replace(/\*+/g, "")
+    .replace(/_{2,}/g, "")
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tituloCapituloAceitavel(tituloRaw: string, page: number, pageClasses: PageClassificacao[] = []): boolean {
+  const titulo = limparTituloCandidato(tituloRaw);
+  const n = normalizarTexto(titulo);
+  if (!n || titulo.length < 3) return false;
+  const cls = pageClasses.find((p) => p.page === page);
+  if (cls && cls.kind !== "conteudo") return false;
+  if (/^(sumario|indice|table of contents|conteudo|apresentacao|prefacio|ficha catalografica|dedicatoria|agradecimentos)$/i.test(n)) return false;
+  if (/\.{2,}\s*\d{1,4}\s*$/.test(titulo)) return false;
+  if (/\s\d{1,4}\s*$/.test(titulo) && titulo.length < 120) return false;
+  if (/^(art|arts)\.?\s*\d+[\wº°ª-]*\b/i.test(titulo)) return false;
+  if (/^\(?[ivxlcdm\d]{1,6}\)?\s*$/i.test(titulo)) return false;
+  if (/^(unidade|universalidade|anualidade|exclusividade|transpar[eê]ncia|equil[ií]brio|especifica[cç][aã]o|n[aã]o afeta[cç][aã]o)$/i.test(titulo)) return false;
+  // Título de capa no início, sem marcador de seção, não é capítulo.
+  if (page <= 2 && !tituloComecaComMarcadorEstrutural(titulo)) return false;
+  return true;
+}
+
 async function gerarSumarioCanonico(amostra: string, totalPaginas: number, sumarioExtraido: any[] = []): Promise<SumarioCanonico> {
   const sys = `Você é um editor jurídico. A partir de amostras de um livro OCR-extraído (marcadores <<P#>>),
 produza o SUMÁRIO CANÔNICO em capítulos e liste TODAS as páginas que compõem material NÃO-CAPITULAR
@@ -877,10 +1006,18 @@ Responda EXATAMENTE neste JSON, sem comentários:
 {"capitulos":[{"numero":1,"titulo":"...","pagina_inicio":N,"pagina_fim":M,"epigrafe":"opcional"}],
  "preliminaresPaginas":[1,2,3,157,158]}
 
+Processo editorial obrigatório:
+1. Agente de estrutura: separe capa, índice/sumário impresso e conteúdo real.
+2. Agente de validação: rejeite títulos que aparecem apenas no índice/sumário impresso.
+3. Agente de montagem: cada capítulo precisa começar na página onde o texto do capítulo aparece de verdade.
+
 Regras:
 - Numere capítulos sequencialmente a partir de 1.
 - pagina_inicio DEVE apontar para a página onde o capítulo REALMENTE começa (não onde é listado no sumário).
 - Não sobreponha faixas de capítulos.
+- Nunca use capa, folha de rosto, página só com o título do livro, ÍNDICE ou SUMÁRIO como capítulo.
+- Não transforme subtítulos internos, princípios isolados ou artigos legais em capítulos principais.
+- Não crie capítulo para o título geral do livro quando ele aparece sozinho nas páginas iniciais.
 - Se você identificar páginas com listas do tipo "Capítulo 1 .... 25 / Capítulo 2 .... 47" ou "SUMÁRIO", elas são preliminaresPaginas — nunca conteúdo de capítulo.
 - Se não houver capítulos claros, use apenas Parte/Livro/Título/Seção.
 - Título dos capítulos: SEM prefixo "Capítulo N" (já será renderizado). Apenas o título.
@@ -907,24 +1044,21 @@ Regras:
   }
 }
 
-function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumarioExtraido: any[] = []): SumarioCanonico {
+function validarERepararSumario(
+  sumario: SumarioCanonico,
+  pages: string[],
+  sumarioExtraido: any[] = [],
+  pageClasses: PageClassificacao[] = [],
+): SumarioCanonico {
   const totalPaginas = pages.length;
   let capitulos = (sumario.capitulos || [])
     .map((c, i) => ({ ...c, numero: c.numero ?? i + 1, pagina_inicio: clampNum(Number(c.pagina_inicio) || 1, 1, totalPaginas) }))
-    .filter((c) => String(c.titulo || '').trim());
+    .filter((c) => tituloCapituloAceitavel(c.titulo, c.pagina_inicio, pageClasses))
+    .filter((c) => paginaTemCorpoDeCapitulo(pages[c.pagina_inicio - 1] || ""));
 
   // Fallback: se o AI colapsou tudo em poucos capítulos mas o OCR extraiu um sumário rico,
   // reconstrói os capítulos a partir do sumário extraído (títulos + páginas reais).
-  const preliminaresRe = /^(sum[áa]rio|[íi]ndice|apresenta[cç][ãa]o|pref[áa]cio|dedicat[óo]ria|agradecimentos|ficha catalogr[áa]fica|col[oó]f[ãa]o|bibliografia|nota do (autor|editor)|cap[ií]tulo\s*$|em[eé]diato editores)/i;
-  const tocLeaderRe = /\.{2,}\s*\d{1,4}\s*$/;               // "Título .......... 39"
-  const pageSuffixRe = /\s\d{1,4}\s*$/;                       // "11. ACORDO DE ACIONISTAS 39"
-  const candidatosExtraidos = (sumarioExtraido || [])
-    .filter((s: any) => s && typeof s.page === 'number' && typeof s.titulo === 'string')
-    .map((s: any) => ({ ...s, titulo: String(s.titulo).replace(/\*+/g, '').trim() }))
-    .filter((s: any) => !preliminaresRe.test(s.titulo))
-    .filter((s: any) => !tocLeaderRe.test(s.titulo))
-    .filter((s: any) => !(pageSuffixRe.test(s.titulo) && s.titulo.length < 120))
-    .filter((s: any) => s.titulo.length >= 3);
+  const candidatosExtraidos = filtrarCandidatosSumario(sumarioExtraido, pageClasses);
   if (candidatosExtraidos.length >= 4 && capitulos.length < Math.max(3, Math.floor(candidatosExtraidos.length * 0.4))) {
     console.warn('[refino] AI devolveu poucos capítulos vs sumário extraído — usando fallback', {
       ai: capitulos.length, extraido: candidatosExtraidos.length,
@@ -936,11 +1070,20 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
     }));
   }
 
-  if (!capitulos.length) return sumario;
+  if (!capitulos.length) {
+    const primeiraPaginaConteudo = pageClasses.find((p) => p.kind === "conteudo")?.page ?? 1;
+    return {
+      capitulos: [{ numero: 1, titulo: "Conteúdo", pagina_inicio: primeiraPaginaConteudo, pagina_fim: totalPaginas }],
+      preliminaresPaginas: unirPaginas(sumario.preliminaresPaginas || [], pageClasses.filter((p) => p.kind !== "conteudo").map((p) => p.page), totalPaginas),
+    };
+  }
 
   const tocPages = new Set<number>();
   pages.forEach((p, i) => {
     if (isPaginaIndiceOriginal(p)) tocPages.add(i + 1);
+  });
+  pageClasses.forEach((p) => {
+    if (p.kind !== "conteudo") tocPages.add(p.page);
   });
 
   const starts = capitulos.map((c) => c.pagina_inicio);
@@ -948,7 +1091,10 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
   const repetiuPagina = capitulos.length >= 4 && uniqueStarts.size <= Math.max(2, Math.ceil(capitulos.length * 0.35));
   const apontaParaIndice = starts.filter((p) => tocPages.has(p)).length >= Math.max(1, Math.ceil(capitulos.length * 0.25));
 
-  if (!repetiuPagina && !apontaParaIndice) {
+  const fragmentadoDemais = capitulos.length > Math.max(8, Math.ceil(totalPaginas / 3));
+  const semConfirmacaoNoCorpo = capitulos.filter((c) => !paginaTemTitulo(pages[c.pagina_inicio - 1] || "", c.titulo)).length;
+
+  if (!repetiuPagina && !apontaParaIndice && !fragmentadoDemais && semConfirmacaoNoCorpo <= Math.ceil(capitulos.length * 0.5)) {
     return {
       capitulos: normalizarFaixasCapitulos(capitulos, totalPaginas),
       preliminaresPaginas: unirPaginas(sumario.preliminaresPaginas || [], Array.from(tocPages), totalPaginas),
@@ -958,6 +1104,8 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
   console.warn('[refino] sumário suspeito; reparando páginas reais dos capítulos', {
     capitulos: capitulos.length,
     starts: uniqueStarts.size,
+    fragmentadoDemais,
+    semConfirmacaoNoCorpo,
     tocPages: Array.from(tocPages),
   });
 
@@ -1082,6 +1230,28 @@ function normalizarTexto(s: string) {
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function temTextoUtil(md: string | null | undefined, min = 40) {
+  const texto = String(md || "")
+    .replace(/<!--[^>]*-->/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[[^\]]+\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return texto.length >= min && /[a-zà-úç]{3,}/i.test(texto);
+}
+
+function paginaTemCorpoDeCapitulo(md: string) {
+  const corpo = String(md || "")
+    .replace(/<!--[^>]*-->/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .split("\n")
+    .filter((linha) => !/^\s*#{1,6}\s+/.test(linha))
+    .join("\n");
+  return temTextoUtil(corpo, 80);
 }
 
 function unirPaginas(a: number[], b: number[], totalPaginas: number) {
