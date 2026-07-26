@@ -65,8 +65,9 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
     if (!userId) return;
     setExecutando(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-user-acao', {
-        body: { user_id: userId, acao },
+      const { data, error } = await supabase.rpc('admin_gerenciar_usuario' as any, {
+        _user_id: userId,
+        _acao: acao,
       });
       if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
       toast.success(acao === 'ban' ? 'Usuário banido — não poderá usar este e-mail' : 'Conta excluída definitivamente');
