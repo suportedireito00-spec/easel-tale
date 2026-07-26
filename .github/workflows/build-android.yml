@@ -320,10 +320,18 @@ jobs:
           s = p.read_text()
           if 'name="splash_bg"' not in s:
               s = s.replace('</resources>', '    <color name="splash_bg">#FFD500</color>\n</resources>')
-              p.write_text(s)
               print('splash_bg color added')
           else:
               print('splash_bg color already present')
+          if 'name="app_bg"' not in s:
+              # Fundo escuro do app — usado no windowBackground base pra impedir
+              # que dialogs do sistema (copiar/colar, Credential Manager) puxem
+              # o splash amarelo como fundo flutuante.
+              s = s.replace('</resources>', '    <color name="app_bg">#0a0f1a</color>\n</resources>')
+              print('app_bg color added')
+          else:
+              print('app_bg color already present')
+          p.write_text(s)
           PY
 
           # values-v31/styles.xml — NÃO usar Theme.SplashScreen compat aqui.
@@ -394,7 +402,7 @@ jobs:
                   ('android:windowActionBar', 'false'),
                   ('android:windowNoTitle', 'true'),
                   ('android:windowContentOverlay', '@null'),
-                  ('android:windowBackground', '@color/splash_bg'),
+                  ('android:windowBackground', '@color/app_bg'),
               ])
               s2 = replace_or_add_style(s2, 'AppTheme.NoActionBarLaunch', 'AppTheme.NoActionBar', [
                   ('android:background', '@color/splash_bg'),
@@ -436,7 +444,7 @@ jobs:
                   '        <item name="android:windowActionBar">false</item>\n'
                   '        <item name="android:windowNoTitle">true</item>\n'
                   '        <item name="android:windowContentOverlay">@null</item>\n'
-                  '        <item name="android:windowBackground">@color/splash_bg</item>\n'
+                  '        <item name="android:windowBackground">@color/app_bg</item>\n'
                   '    </style>\n'
               )
               launch = (
@@ -2803,7 +2811,7 @@ jobs:
                   <item name="android:windowActionBar">false</item>
                   <item name="android:windowNoTitle">true</item>
                   <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowBackground">@color/splash_bg</item>
+                  <item name="android:windowBackground">@color/app_bg</item>
               </style>
               <style name="AppTheme.NoActionBar" parent="AppTheme">
                   <item name="windowActionBar">false</item>
@@ -2811,7 +2819,7 @@ jobs:
                   <item name="android:windowActionBar">false</item>
                   <item name="android:windowNoTitle">true</item>
                   <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowBackground">@color/splash_bg</item>
+                  <item name="android:windowBackground">@color/app_bg</item>
               </style>
               <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
                   <item name="android:background">@color/splash_bg</item>

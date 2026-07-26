@@ -96,16 +96,10 @@ const config: CapacitorConfig = {
       // novamente" a cada login e às vezes suprimia o idToken.
     },
 
-    // Fluxo moderno via Credential Manager (bottom sheet nativo).
-    // O Supabase precisa apenas do idToken emitido para o Client ID Web.
-    SocialLogin: {
-      google: {
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-      },
-      apple: {
-        clientId: 'br.com.vacatio.app',
-      },
-    },
+    // SocialLogin (Credential Manager) REMOVIDO: o bottom sheet do Credential
+    // Manager oferecia salvar a credencial com biometria e o dialog do sistema
+    // herdava o windowBackground amarelo do splash. Login social agora vai só
+    // pelo GoogleAuth (Android) e pelo fluxo OAuth via Browser (iOS/Apple).
 
 
   },

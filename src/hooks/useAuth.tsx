@@ -6,7 +6,6 @@ import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
 
 let nativeGoogleAuthInit: Promise<void> | null = null;
-let socialLoginInit: Promise<void> | null = null;
 
 // Client ID Web — mesmo valor de capacitor.config.ts. Serve como audience
 // do idToken para o Supabase (signInWithIdToken).
@@ -191,51 +190,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isNative = Capacitor.isNativePlatform();
 
     if (isNative) {
-      // 1) Caminho preferencial: Credential Manager (bottom sheet nativo).
-      try {
-        const { SocialLogin } = await import('@capgo/capacitor-social-login');
-
-        if (!socialLoginInit) {
-          socialLoginInit = SocialLogin.initialize({
-            google: { webClientId: GOOGLE_WEB_CLIENT_ID },
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              socialLoginInit = null;
-              throw error;
-            });
-        }
-        await socialLoginInit;
-
-        const res: any = await SocialLogin.login({
-          provider: 'google',
-          options: {
-            scopes: ['profile', 'email'],
-            forceRefreshToken: false,
-          },
-        });
-
-        const idToken: string | undefined =
-          res?.result?.idToken ?? res?.result?.authentication?.idToken;
-
-        if (idToken) {
-          const { error } = await supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: idToken,
-          });
-          if (error) {
-            console.error('[SocialLogin] Supabase rejeitou idToken', error);
-            return { error: new Error(error.message) };
-          }
-          return { error: null };
-        }
-        // Sem idToken → cai no fallback abaixo.
-        console.warn('[SocialLogin] idToken ausente, tentando fallback GoogleAuth');
-      } catch (e: any) {
-        console.warn('[SocialLogin] Falhou, tentando fallback GoogleAuth', e);
-      }
-
-      // 2) Fallback: plugin legado (mantido temporariamente).
+      // Login Google nativo via GoogleAuth (sem Credential Manager).
+      // O Credential Manager foi removido porque disparava o prompt de
+      // "Ativar login por biometria" e o dialog herdava o windowBackground
+      // amarelo do splash.
       try {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
 
@@ -287,35 +245,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const platform = Capacitor.getPlatform();
 
     if (platform === 'ios') {
+      // iOS: usa o fluxo OAuth do Supabase via Browser (Safari View Controller).
+      // O SocialLogin/Credential Manager foi removido pra não pedir biometria.
       try {
-        const { SocialLogin } = await import('@capgo/capacitor-social-login');
-        if (!socialLoginInit) {
-          socialLoginInit = SocialLogin.initialize({
-            google: { webClientId: GOOGLE_WEB_CLIENT_ID },
-            apple: { clientId: 'br.com.vacatio.app' },
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              socialLoginInit = null;
-              throw error;
-            });
-        }
-        await socialLoginInit;
-        const res: any = await SocialLogin.login({
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'apple',
-          options: { scopes: ['email', 'name'] },
+          options: {
+            redirectTo: 'br.com.vacatio.app://auth-callback',
+            skipBrowserRedirect: true,
+          },
         });
-        const idToken = res?.result?.idToken ?? res?.result?.identityToken;
-        if (!idToken) {
-          return { error: new Error('Apple não retornou o token de identidade.') };
-        }
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: 'apple',
-          token: idToken,
+        if (error) return { error: error as Error };
+        if (!data?.url) return { error: new Error('Supabase não retornou URL do OAuth Apple.') };
+        await Browser.open({
+          url: data.url,
+          presentationStyle: 'popover',
+          windowName: '_self',
         });
-        return { error: error as Error | null };
+        return { error: null };
       } catch (e: any) {
-        console.error('[SocialLogin] Apple sign-in failed', e);
+        console.error('[Apple/iOS] OAuth failed', e);
         return { error: new Error(e?.message || 'Não consegui entrar com a Apple.') };
       }
     }
