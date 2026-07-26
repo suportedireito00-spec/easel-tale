@@ -16,7 +16,9 @@ export type PremiumFeatureKey =
   | 'jurisprudencia' | 'videoaula' | 'grafo' | 'mapa_mental' | 'lembretes'
   | 'baixar' | 'anotacoes' | 'grifo' | 'flashcards' | 'questoes'
   | 'praticar' | 'favorito'
-  | 'radar' | 'blog' | 'biblioteca' | 'aprender' | 'horus' | 'default';
+  | 'radar' | 'blog' | 'biblioteca' | 'aprender' | 'horus'
+  | 'chat_juridico' | 'chat_web' | 'chat_anexo' | 'default';
+
 
 type FeatureInfo = { title: string; description: string; icon: LucideIcon };
 
