@@ -66,6 +66,7 @@ const IndexMobile = () => {
   }, []);
 
   const handleSearchSelectLei = (lei: { tipo: string; leiId: string; nome: string; descricao: string; tabela_nome: string; artigoNumero?: string }) => {
+    track('lei_search_selected', { tipo: lei.tipo, lei_id: lei.leiId, lei_nome: lei.nome, has_artigo: Boolean(lei.artigoNumero) });
     pushRecente({ tipo: lei.tipo, leiId: lei.leiId, nome: lei.nome, descricao: lei.descricao, tabela_nome: lei.tabela_nome });
     const slug = leiToSlug({ id: lei.leiId, nome: lei.nome });
     const base = `/legislacao/${tipoToSlug(lei.tipo)}/${slug}`;
