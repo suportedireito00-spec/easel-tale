@@ -58,6 +58,26 @@ const dia = (v?: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') 
 export function UserDossieSheet({ userId, nome, email, provider, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [d, setD] = useState<Dossie | null>(null);
+  const [confirmar, setConfirmar] = useState<null | 'menu' | 'ban' | 'delete'>(null);
+  const [executando, setExecutando] = useState(false);
+
+  const executarAcao = async (acao: 'ban' | 'delete') => {
+    if (!userId) return;
+    setExecutando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-user-acao', {
+        body: { user_id: userId, acao },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+      toast.success(acao === 'ban' ? 'Usuário banido — não poderá usar este e-mail' : 'Conta excluída definitivamente');
+      setConfirmar(null);
+      onClose();
+    } catch (e: any) {
+      toast.error('Não foi possível concluir', { description: e?.message });
+    } finally {
+      setExecutando(false);
+    }
+  };
 
   useEffect(() => {
     if (!userId) {
