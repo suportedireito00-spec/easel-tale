@@ -415,7 +415,7 @@ const CategoriaLegislacao = () => {
 
   const isArtigoFav = (a: { id: string; numero: string | number }) => {
     const num = String(a.numero || '').replace(/^Art\.\s*/i, '').trim();
-    return isArtigoFav(a) || favArtigoNumeros.has(num) || favArtigoNumeros.has(String(a.numero));
+    return favoritos.has(a.id) || favArtigoNumeros.has(num) || favArtigoNumeros.has(String(a.numero));
   };
 
 
