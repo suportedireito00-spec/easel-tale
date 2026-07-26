@@ -391,7 +391,28 @@ const CategoriaLegislacao = () => {
       localStorage.setItem('vademecum-favoritos', JSON.stringify([...next]));
       return next;
     });
+    // Persistência real em Supabase (para aparecer em Meu Espaço → Meus Artigos)
+    const artigo = artigos.find((a) => a.id === id);
+    if (artigo && selectedTabelaNome) {
+      const numero = String(artigo.numero || '').replace(/^Art\.\s*/i, '').trim() || String(artigo.numero || '');
+      const preview = String((artigo as any).caput || (artigo as any).texto || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 240);
+      // Optimistic set update
+      setFavArtigoNumeros((prev) => {
+        const next = new Set(prev);
+        if (next.has(numero)) next.delete(numero); else next.add(numero);
+        return next;
+      });
+      toggleArtigoFavorito({
+        tabela_codigo: selectedTabelaNome,
+        numero_artigo: numero,
+        conteudo_preview: preview || null,
+      }).catch(() => {});
+    }
   };
+
 
   const UF_ESTADUAL = tipo && /^estadual_([a-z]{2})$/i.exec(tipo)?.[1]?.toUpperCase();
   const config = tipo
