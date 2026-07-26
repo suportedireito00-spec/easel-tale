@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_alertas: {
+        Row: {
+          created_at: string
+          erro: string | null
+          id: string
+          payload: Json
+          sent_at: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          erro?: string | null
+          id?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          erro?: string | null
+          id?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       agenda_eventos: {
         Row: {
           checklist: Json | null
