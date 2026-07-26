@@ -284,6 +284,7 @@ const MeuEspaco = () => {
 
   const go = (path: string) => {
     haptic.selection();
+    track('meu_espaco_acesso_rapido', { path });
     navigate(path);
   };
 
