@@ -107,6 +107,10 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
   const [shareText, setShareText] = useState<string | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [gateFeature, setGateFeature] = useState<PremiumFeatureKey | null>(null);
+  const chatLimit = useFeatureLimit('ia_juridica');
+  const podeUsarPremium = chatLimit.isPremium || chatLimit.isAdmin;
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
