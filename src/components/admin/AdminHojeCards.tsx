@@ -79,8 +79,40 @@ const hora = (v?: string | null) =>
 
 const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
+type Seen = { count: number; keys: string[] };
+
+const seenStorageKey = (id: CardId, d: Date) => `admin_hoje_seen_${id}_${isoDate(d)}`;
+
+const readSeen = (id: CardId, d: Date): Seen => {
+  try {
+    const raw = localStorage.getItem(seenStorageKey(id, d));
+    if (!raw) return { count: 0, keys: [] };
+    const parsed = JSON.parse(raw);
+    return { count: parsed.count || 0, keys: Array.isArray(parsed.keys) ? parsed.keys : [] };
+  } catch {
+    return { count: 0, keys: [] };
+  }
+};
+
+const writeSeen = (id: CardId, d: Date, seen: Seen) => {
+  try {
+    localStorage.setItem(seenStorageKey(id, d), JSON.stringify(seen));
+  } catch {
+    /* ignore */
+  }
+};
+
 export function AdminHojeCards() {
   const [counts, setCounts] = useState<Record<CardId, number>>({ online: 0, cadastros: 0, trial: 0 });
+  const [seenCounts, setSeenCounts] = useState<Record<CardId, number>>(() => {
+    const hoje = new Date();
+    return {
+      online: readSeen('online', hoje).count,
+      cadastros: readSeen('cadastros', hoje).count,
+      trial: readSeen('trial', hoje).count,
+    };
+  });
+  const [novosKeys, setNovosKeys] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<CardId | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,6 +124,7 @@ export function AdminHojeCards() {
   const [provOpen, setProvOpen] = useState<string | null>(null);
   const [provRows, setProvRows] = useState<Row[]>([]);
   const [provLoading, setProvLoading] = useState(false);
+
 
   const abrirProvider = useCallback(
     async (p: string) => {
