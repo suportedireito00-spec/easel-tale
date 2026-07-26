@@ -30,12 +30,28 @@ async function callFn(path: string, body?: unknown, auth?: string) {
   return res.json();
 }
 
+const DESKTOP_ID_KEY = 'vacatio.desktop_id';
+const DESKTOP_SESSION_KEY = 'vacatio.desktop_session_id';
+
+function getDesktopId(): string {
+  try {
+    let id = window.localStorage.getItem(DESKTOP_ID_KEY);
+    if (!id) {
+      id = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      window.localStorage.setItem(DESKTOP_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
 const DesktopQrLogin = () => {
   const [status, setStatus] = useState<Status>('loading');
   const [token, setToken] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [expiresAt, setExpiresAt] = useState<number>(0);
-  const [remaining, setRemaining] = useState<number>(180);
+  const [remaining, setRemaining] = useState<number>(60);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const pollRef = useRef<number | null>(null);
   const claimingRef = useRef(false);
@@ -44,8 +60,10 @@ const DesktopQrLogin = () => {
     setStatus('loading');
     setQrDataUrl('');
     setErrorMsg('');
+    setExpiresAt(0);
+    setRemaining(60);
     try {
-      const r = await callFn('desktop-link', { action: 'create' });
+      const r = await callFn('desktop-link', { action: 'create', desktop_id: getDesktopId() });
       if (!r?.token) throw new Error(r?.error || 'sem_token');
       const url = `${APP_LINK_BASE}/desktop-link/${r.token}`;
       const dataUrl = await QRCode.toDataURL(url, {
@@ -73,7 +91,7 @@ const DesktopQrLogin = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Countdown
+  // Countdown — só depois de ter `expiresAt` real do servidor.
   useEffect(() => {
     if (status !== 'pending' || !expiresAt) return;
     const id = window.setInterval(() => {
@@ -98,16 +116,33 @@ const DesktopQrLogin = () => {
           claimingRef.current = true;
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus('claimed');
-          const { error } = await supabase.auth.verifyOtp({
-            type: 'magiclink',
+          // O hashed_token do generateLink('magiclink') se verifica como type:'email'.
+          let { error } = await supabase.auth.verifyOtp({
+            type: 'email',
             token_hash: r.token_hash,
           });
+          // Fallback: 'magiclink' caso o Supabase mude o comportamento.
           if (error) {
-            toast.error('Não foi possível finalizar o login. Tente novamente.');
+            const retry = await supabase.auth.verifyOtp({
+              type: 'magiclink',
+              token_hash: r.token_hash,
+            });
+            error = retry.error;
+          }
+          if (error) {
+            console.error('[DesktopQrLogin] verifyOtp failed', error);
+            setErrorMsg(error.message);
+            toast.error('Não foi possível finalizar o login: ' + error.message);
             setStatus('error');
           } else {
+            if (r?.session_id) {
+              try {
+                window.localStorage.setItem(DESKTOP_SESSION_KEY, r.session_id);
+              } catch {
+                /* ignore */
+              }
+            }
             toast.success('Login liberado!');
-            // AuthProvider vai captar a sessão e o ProtectedRoute redireciona.
           }
         } else if (r?.status === 'expired' || r?.status === 'not_found') {
           setStatus('expired');
