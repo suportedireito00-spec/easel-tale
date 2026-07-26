@@ -73,6 +73,38 @@ export async function listNumerosFavoritosByTabela(tabela: string): Promise<stri
  * espelha em localStorage para funcionar offline / fallback.
  * Retorna `true` se ficou favoritado, `false` se foi removido.
  */
+export class FavoritoLimitError extends Error {
+  limite: number;
+  constructor(limite: number) {
+    super(`Limite de ${limite} artigos favoritos atingido`);
+    this.name = 'FavoritoLimitError';
+    this.limite = limite;
+  }
+}
+
+/** Premium a partir do snapshot local do useSubscription (evita dependência de hook aqui). */
+function isPremiumSnapshot(userId: string, email?: string | null): boolean {
+  const adminEmails = ['wn7corporation@gmail.com', 'suporte.vacatio@gmail.com', 'wn7juridico@gmail.com'];
+  if (email && adminEmails.includes(email.toLowerCase())) return true;
+  try {
+    const raw = localStorage.getItem(`vacatio:sub:${userId}`);
+    if (!raw) return false;
+    return !!JSON.parse(raw)?.isPremium;
+  } catch { return false; }
+}
+
+/** Limite de favoritos ativos para contas gratuitas (0 = sem limite / desativado). */
+async function favoritoLimit(): Promise<number> {
+  const { data } = await supabase
+    .from('feature_limits' as any)
+    .select('limit_value, enabled')
+    .eq('feature_key', 'lei_favorito')
+    .maybeSingle();
+  const row = data as any;
+  if (!row || !row.enabled) return 0;
+  return Number(row.limit_value) || 0;
+}
+
 export async function toggleArtigoFavorito(fav: ArtigoFav): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   const tabela = fav.tabela_codigo;
