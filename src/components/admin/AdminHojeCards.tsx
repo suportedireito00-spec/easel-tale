@@ -208,10 +208,19 @@ export function AdminHojeCards() {
   ];
 
   const titles: Record<CardId, string> = {
-    online: 'Online hoje',
-    cadastros: 'Cadastrados hoje',
-    trial: 'Iniciaram assinatura teste hoje',
+    online: 'Online',
+    cadastros: 'Cadastrados',
+    trial: 'Iniciaram assinatura teste',
   };
+
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const rotuloDia = sameDay(dia, hoje)
+    ? 'Hoje'
+    : sameDay(dia, ontem)
+      ? 'Ontem'
+      : dia.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 
   return (
     <>
@@ -233,19 +242,55 @@ export function AdminHojeCards() {
         <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
           <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
             <SheetTitle className="font-display text-base font-bold text-foreground">
-              {open ? titles[open] : ''}
+              {open ? `${titles[open]} · ${rotuloDia}` : ''}
             </SheetTitle>
             <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
               {loading ? 'Carregando…' : `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
             </p>
           </SheetHeader>
+
+          <div className="border-b border-border/50 bg-background/95 sticky top-0 z-10">
+            <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-none">
+              {dias.map((d) => {
+                const ativo = sameDay(d, dia);
+                const ehHoje = sameDay(d, hoje);
+                const ehOntem = sameDay(d, ontem);
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => selecionarDia(d)}
+                    className={cn(
+                      'shrink-0 min-w-[64px] rounded-2xl border px-3 py-2.5 text-center transition-colors',
+                      ativo
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-secondary/30 border-border/60 text-muted-foreground hover:bg-secondary/60',
+                    )}
+                  >
+                    <div className="font-body text-[10.5px] uppercase tracking-wide opacity-80">
+                      {ehHoje ? 'Hoje' : ehOntem ? 'Ontem' : DIAS[d.getDay()]}
+                    </div>
+                    <div className={cn('font-display text-lg font-bold leading-none mt-1', ativo ? '' : 'text-foreground')}>
+                      {String(d.getDate()).padStart(2, '0')}
+                    </div>
+                    <div className="font-body text-[10px] opacity-70 mt-0.5">
+                      {d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="p-3">
             {loading ? (
               <div className="flex justify-center py-10 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin" />
               </div>
             ) : rows.length === 0 ? (
-              <p className="font-body text-sm text-muted-foreground text-center py-10">Nenhum registro hoje.</p>
+              <p className="font-body text-sm text-muted-foreground text-center py-10">
+                Nenhum registro em {rotuloDia.toLowerCase()}.
+              </p>
             ) : (
               <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
                 {rows.map((r) => (
