@@ -86,6 +86,15 @@ function parseDeepLink(url: string): string | null {
       case 'leitura':
       case 'continuar':
         return '/biblioteca?continuar=1';
+      case 'livro':
+      case 'biblioteca':
+        return rest[0] ? `/biblioteca?livro=${encodeURIComponent(rest[0])}` : '/biblioteca';
+      case 'frase':
+        return rest[0] ? `/biblioteca?frase=${encodeURIComponent(rest[0])}` : '/biblioteca';
+      case 'resumo':
+        return rest[0] ? `/resumos-juridicos?id=${encodeURIComponent(rest[0])}` : '/resumos-juridicos';
+      case 'dicionario':
+        return rest[0] ? `/dicionario?termo=${encodeURIComponent(rest[0])}` : '/dicionario';
       case 'shortcut': {
         // vacatio://shortcut/<slug>
         // Fallback: delega ao mapa em nativeShortcuts.ts
