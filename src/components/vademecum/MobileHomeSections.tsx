@@ -443,6 +443,8 @@ const MobileHomeSections = ({ onTabChange, onNewsOpenChange }: Props = {}) => {
               <button
                 key={c.id}
                 onClick={() => handle(c.id)}
+                data-track="home_outras_normas_click"
+                data-track-name={c.label}
                 className="w-full flex items-center gap-3 px-4 py-5 min-h-[76px] rounded-2xl bg-card border border-border/60 shadow-sm active:scale-[0.99] transition"
               >
                 <Icon
