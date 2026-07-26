@@ -225,12 +225,26 @@ export function AdminHojeCards() {
   }, []);
 
 
-  const openCard = (id: CardId) => {
+  const openCard = useCallback((id: CardId) => {
     const hoje = new Date();
     setOpen(id);
     setDia(hoje);
     fetchRows(id, hoje);
-  };
+  }, [fetchRows]);
+
+  // Deep link vindo do push do admin: /admin-funcoes?card=cadastros|trial|online
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const card = params.get('card');
+    if (card === 'cadastros' || card === 'trial' || card === 'online') {
+      openCard(card);
+      params.delete('card');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, [openCard]);
+
+
 
 
   const selecionarDia = (d: Date) => {
