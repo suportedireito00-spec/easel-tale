@@ -131,13 +131,29 @@ const Jurisprudencia = () => {
     let id: ReturnType<typeof setInterval> | null = null;
     const start = () => {
       if (id) return;
-      id = setInterval(() => setCoverIndex((i) => (i + 1) % JURIS_FIGURES.length), 5000);
+      id = setInterval(() => setCoverIndex((i) => (i + 1) % JURIS_FIGURES.length), 9000);
     };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
     if (!document.hidden) start();
     const onVis = () => (document.hidden ? stop() : start());
     document.addEventListener('visibilitychange', onVis);
     return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
+
+  // Aquece o cache de TODAS as figuras (são poucas e leves) em idle, para
+  // que os slides seguintes apareçam instantaneamente sem "carregando".
+  useEffect(() => {
+    const w: any = window;
+    const idle = w.requestIdleCallback || ((cb: any) => setTimeout(cb, 400));
+    const cancel = w.cancelIdleCallback || clearTimeout;
+    const handle = idle(() => {
+      JURIS_FIGURES.forEach((f) => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = assetUrl(f.url);
+      });
+    });
+    return () => cancel(handle);
   }, []);
 
   const abrir = (id: string) => {
