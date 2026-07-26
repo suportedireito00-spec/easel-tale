@@ -86,6 +86,22 @@ export function AdminHojeCards() {
   const [loading, setLoading] = useState(false);
   const [dossie, setDossie] = useState<Row | null>(null);
   const [dia, setDia] = useState<Date>(() => new Date());
+  const [totaisOpen, setTotaisOpen] = useState(false);
+  const [totais, setTotais] = useState<any>(null);
+  const [totaisLoading, setTotaisLoading] = useState(false);
+
+  const abrirTotais = useCallback(async () => {
+    if (!open) return;
+    setTotaisOpen(true);
+    setTotaisLoading(true);
+    setTotais(null);
+    try {
+      const { data } = await supabase.rpc('admin_totais' as any, { _tipo: open });
+      setTotais(data as any);
+    } finally {
+      setTotaisLoading(false);
+    }
+  }, [open]);
 
   const load = useCallback(async () => {
     const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(new Date()) });
