@@ -1216,6 +1216,15 @@ function normalizarTexto(s: string) {
     .trim();
 }
 
+function temTextoUtil(md: string | null | undefined, min = 40) {
+  const texto = String(md || "")
+    .replace(/<!--[^>]*-->/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return texto.length >= min && /[a-zà-úç]{3,}/i.test(texto);
+}
+
 function unirPaginas(a: number[], b: number[], totalPaginas: number) {
   return Array.from(new Set([...a, ...b].filter((n) => Number.isInteger(n) && n >= 1 && n <= totalPaginas))).sort((x, y) => x - y);
 }
