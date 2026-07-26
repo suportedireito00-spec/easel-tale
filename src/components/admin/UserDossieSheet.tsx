@@ -65,7 +65,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
       hoje.setHours(0, 0, 0, 0);
       const desdeHoje = hoje.toISOString();
 
-      const [perfilR, logR, sessR, featR, evR, favR, grifR, anotR, assR] = await Promise.all([
+      const [perfilR, logR, sessR, featR, evR, favR, grifR, anotR, assR, horusR, horusStatsR] = await Promise.all([
         supabase.from('profiles' as any).select('*').eq('id', userId).maybeSingle(),
         supabase.from('user_activity_log' as any)
           .select('current_route, last_seen_at')
