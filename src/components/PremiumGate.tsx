@@ -33,6 +33,8 @@ const FEATURES: Record<PremiumFeatureKey, FeatureInfo> = {
   grifo:         { title: 'Grifos ilimitados', description: 'Grife trechos manualmente, por voz, foto ou com a IA. Assine para desbloquear.', icon: Highlighter },
   flashcards:    { title: 'Flashcards ilimitados', description: 'Estude com flashcards gerados automaticamente pela IA. Assine para desbloquear.', icon: Layers },
   questoes:      { title: 'Questões OAB/concurso', description: 'Pratique com questões geradas a partir de qualquer conteúdo. Assine para desbloquear.', icon: HelpCircle },
+  praticar:      { title: 'Praticar sem limite', description: 'Questões e flashcards gerados a partir de qualquer artigo. Assine para desbloquear.', icon: Layers },
+  favorito:      { title: 'Favoritos ilimitados', description: 'Salve quantos artigos quiser nos seus favoritos. Assine para desbloquear.', icon: Highlighter },
   radar:         { title: 'Radar Legislativo', description: 'Acompanhe projetos de lei em tempo real com análise da IA. Assine para desbloquear.', icon: Radar },
   blog:          { title: 'Blogger Jurídico completo', description: 'Leia todos os artigos exclusivos do blog sem limites. Assine para desbloquear.', icon: Newspaper },
   biblioteca:    { title: 'Biblioteca completa', description: 'Acesse a biblioteca de clássicos e obras jurídicas na íntegra. Assine para desbloquear.', icon: Library },
