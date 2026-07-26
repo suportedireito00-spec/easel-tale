@@ -146,6 +146,14 @@ body {
     --tool-fuchsia: 300 80% 60%;
     --tool-red: 0 75% 55%;
 
+    /* Cores dos provedores de autenticação (tags admin) */
+    --provider-google: 217 89% 60%;
+    --provider-google-foreground: 0 0% 100%;
+    --provider-email: 25 95% 53%;
+    --provider-email-foreground: 0 0% 4%;
+    --provider-apple: 0 0% 100%;
+    --provider-apple-foreground: 0 0% 4%;
+
     /* Novos tokens de motion/superfície */
     --shadow-hazard: 0 12px 40px -12px hsl(51 100% 50% / 0.45);
     --stripe-tape: repeating-linear-gradient(

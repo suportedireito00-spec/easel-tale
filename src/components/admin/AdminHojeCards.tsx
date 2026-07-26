@@ -3,6 +3,7 @@ import { Radio, UserPlus, Sparkles, Loader2, Mail } from 'lucide-react';
 import { SiGoogle, SiApple } from 'react-icons/si';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { UserDossieSheet } from './UserDossieSheet';
 import { rotaParaFuncao } from '@/lib/rotaFuncoes';
 
@@ -21,14 +22,38 @@ interface Row {
 const ProviderTag = ({ provider }: { provider?: string | null }) => {
   if (!provider) return null;
   const p = provider.toLowerCase();
-  const cfg =
-    p.includes('google')
-      ? { label: 'Google', node: <SiGoogle className="w-3 h-3" /> }
-      : p.includes('apple')
-        ? { label: 'Apple', node: <SiApple className="w-3 h-3" /> }
-        : { label: 'E-mail', node: <Mail className="w-3 h-3" /> };
+  const cfg = p.includes('google')
+    ? {
+        label: 'Google',
+        node: <SiGoogle className="w-3 h-3" />,
+        bg: 'bg-[hsl(var(--provider-google))]',
+        fg: 'text-[hsl(var(--provider-google-foreground))]',
+        border: 'border-[hsl(var(--provider-google))]/30',
+      }
+    : p.includes('apple')
+      ? {
+          label: 'Apple',
+          node: <SiApple className="w-3 h-3" />,
+          bg: 'bg-[hsl(var(--provider-apple))]',
+          fg: 'text-[hsl(var(--provider-apple-foreground))]',
+          border: 'border-[hsl(var(--provider-apple))]/30',
+        }
+      : {
+          label: 'E-mail',
+          node: <Mail className="w-3 h-3" />,
+          bg: 'bg-[hsl(var(--provider-email))]',
+          fg: 'text-[hsl(var(--provider-email-foreground))]',
+          border: 'border-[hsl(var(--provider-email))]/30',
+        };
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-[2px] font-body text-[10px] text-muted-foreground shrink-0">
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2 py-[2px] font-body text-[10px] shrink-0',
+        cfg.bg,
+        cfg.fg,
+        cfg.border,
+      )}
+    >
       {cfg.node}
       {cfg.label}
     </span>
