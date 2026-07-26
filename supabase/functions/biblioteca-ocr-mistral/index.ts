@@ -864,6 +864,90 @@ interface SumarioCanonico {
   preliminaresPaginas?: number[];
 }
 
+type PageClassificacao = {
+  page: number;
+  kind: "capa" | "indice" | "preliminar" | "conteudo";
+  reason: string;
+};
+
+function classificarPaginaLivro(md: string, page: number): PageClassificacao {
+  const linhas = String(md || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const primeiras = linhas.slice(0, 30);
+  const texto = normalizarTexto(linhas.join("\n"));
+  const headingLines = linhas.filter((l) => /^#{1,6}\s+/.test(l));
+  const bodyText = linhas
+    .filter((l) => !/^#{1,6}\s+/.test(l))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (isPaginaIndiceOriginal(md)) return { page, kind: "indice", reason: "sumario_impresso" };
+
+  const temCabecalhoPreliminar = primeiras.some((l) =>
+    /^#{0,6}\s*(sum[áa]rio|[íi]ndice|table of contents|apresenta[cç][ãa]o|pref[áa]cio|ficha catalogr[áa]fica|dedicat[óo]ria|agradecimentos)\b/i.test(l),
+  );
+  if (temCabecalhoPreliminar) return { page, kind: "preliminar", reason: "cabecalho_preliminar" };
+
+  // Capa/folha de rosto: início do PDF, pouco texto corrido e título grande isolado.
+  const poucosParagrafos = bodyText.length < 220;
+  const soTitulos = headingLines.length > 0 && bodyText.length < 120;
+  const pareceCapa = page <= 3 && (soTitulos || (poucosParagrafos && linhas.length <= 12)) &&
+    !/\b(art\.?|cap[ií]tulo|se[cç][ãa]o|lei|constitui[cç][aã]o|or[cç]amento|controle|princ[ií]pio)\b.{40,}/i.test(md);
+  if (pareceCapa) return { page, kind: "capa", reason: "inicio_sem_texto_corrido" };
+
+  if (page <= 3 && texto.includes("todos os direitos reservados")) {
+    return { page, kind: "preliminar", reason: "creditos_editoriais" };
+  }
+
+  return { page, kind: "conteudo", reason: "texto_util" };
+}
+
+function aceitarHeadingComoCandidato(tituloRaw: string, nivel: number, page: number, pageClass: PageClassificacao): boolean {
+  const titulo = limparTituloCandidato(tituloRaw);
+  if (!titulo) return false;
+  if (pageClass.kind !== "conteudo") return false;
+  if (!tituloCapituloAceitavel(titulo, page, [pageClass])) return false;
+  // Headings profundos quase sempre são subtítulos internos no material jurídico.
+  if (nivel >= 3 && !/^(cap[ií]tulo|parte|t[ií]tulo|se[cç][ãa]o)\b/i.test(titulo)) return false;
+  return true;
+}
+
+function filtrarCandidatosSumario(sumarioExtraido: any[] = [], pageClasses: PageClassificacao[] = []) {
+  return (sumarioExtraido || [])
+    .filter((s: any) => s && typeof s.page === "number" && typeof s.titulo === "string")
+    .map((s: any) => ({ ...s, titulo: limparTituloCandidato(String(s.titulo)) }))
+    .filter((s: any) => tituloCapituloAceitavel(s.titulo, Number(s.page), pageClasses))
+    .filter((s: any, idx: number, arr: any[]) =>
+      arr.findIndex((x: any) => normalizarTexto(x.titulo) === normalizarTexto(s.titulo) && Number(x.page) === Number(s.page)) === idx,
+    );
+}
+
+function limparTituloCandidato(raw: string): string {
+  return String(raw || "")
+    .replace(/\*+/g, "")
+    .replace(/_{2,}/g, "")
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tituloCapituloAceitavel(tituloRaw: string, page: number, pageClasses: PageClassificacao[] = []): boolean {
+  const titulo = limparTituloCandidato(tituloRaw);
+  const n = normalizarTexto(titulo);
+  if (!n || titulo.length < 3) return false;
+  const cls = pageClasses.find((p) => p.page === page);
+  if (cls && cls.kind !== "conteudo") return false;
+  if (/^(sumario|indice|table of contents|conteudo|apresentacao|prefacio|ficha catalografica|dedicatoria|agradecimentos)$/i.test(n)) return false;
+  if (/\.{2,}\s*\d{1,4}\s*$/.test(titulo)) return false;
+  if (/\s\d{1,4}\s*$/.test(titulo) && titulo.length < 120) return false;
+  if (/^(art|arts)\.?\s*\d+[\wº°ª-]*\b/i.test(titulo)) return false;
+  if (/^\(?[ivxlcdm\d]{1,6}\)?\s*$/i.test(titulo)) return false;
+  if (/^(unidade|universalidade|anualidade|exclusividade|transpar[eê]ncia|equil[ií]brio|especifica[cç][aã]o|n[aã]o afeta[cç][aã]o)$/i.test(titulo)) return false;
+  // Título de capa no início, sem marcador de seção, não é capítulo.
+  if (page <= 2 && !/^\d+\s*[.\-–—)]\s+|^(cap[ií]tulo|parte|t[ií]tulo|se[cç][ãa]o)\b/i.test(titulo)) return false;
+  return true;
+}
+
 async function gerarSumarioCanonico(amostra: string, totalPaginas: number, sumarioExtraido: any[] = []): Promise<SumarioCanonico> {
   const sys = `Você é um editor jurídico. A partir de amostras de um livro OCR-extraído (marcadores <<P#>>),
 produza o SUMÁRIO CANÔNICO em capítulos e liste TODAS as páginas que compõem material NÃO-CAPITULAR
