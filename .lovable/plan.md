@@ -1,70 +1,87 @@
-## Plano
+## Objetivo
 
-Vou corrigir o pipeline de OCR/refino da leitura nativa para impedir que capa, índice e subtítulos soltos virem capítulos no sumário.
+1. Cadastro → triagem instantâneo (sem os ~5s de tela branca).
+2. Triagem mais completa: depois de coletar nome/WhatsApp, entrar cenas Remotion elegantes com o **nome da pessoa** e depois explicando as **funções do app** (Horus, Biblioteca, Radar, Notificações), no estilo do onboarding do Horus.
+3. Layout mais respirado (margens topo/base), responsivo e sem travar.
+4. Ajustar o Horus onboarding: subir a faixa dos efeitos Remotion na parte de baixo, e otimizar performance.
 
-### Diagnóstico confirmado
+---
 
-- O livro **Orçamento Público** está salvo em `biblioteca_leitura_nativa` como `livro_tabela='biblioteca_estudos'` e `livro_id='1169'`.
-- O registro atual tem `capitulos_json` com um primeiro “capítulo” **ORÇAMENTO PÚBLICO** nas páginas `[1,2]`, mas com `conteudo_md` vazio.
-- O `sumario_json` atual inclui itens como **ÍNDICE**, subtítulos internos e artigos como se fossem capítulos.
-- No código atual, o OCR coleta headings diretamente do Markdown do Mistral; depois o refino usa essa lista como pista forte. Isso permite que headings de capa/índice e subtítulos internos contaminem o sumário final.
-- O leitor (`LeitorNativo`) apenas renderiza `capitulos_json`; então o erro precisa ser corrigido principalmente no backend/refino.
+## 1) Instantâneo pós-cadastro
 
-### O que vou implementar
+Hoje, ao criar conta, o `ProtectedRoute` mostra um `Loader2` até `initialCheckDone`; e a `/onboarding` só monta depois. Ajustes:
 
-1. **Etapa 1 — Classificador determinístico de páginas**
-   - Antes do refino por IA, classificar cada página como:
-     - `capa`
-     - `indice`
-     - `preliminar`
-     - `conteudo`
-   - Páginas de capa/índice não poderão virar capítulo nem aparecer no sumário do leitor.
+- `src/App.tsx` `ProtectedRoute`: se `user` existe e ainda **não** há cache local nem resposta do Supabase, tratar como `needsOnboarding = true` **otimista** (assume novo usuário) e liberar render imediatamente em vez de mostrar o spinner. A confirmação vem em background e só corrige se já estiver completo.
+- `src/hooks/useAuth.tsx`: após `signUp` bem-sucedido, gravar flag `just_signed_up=1` em `sessionStorage` para o `ProtectedRoute` pular direto para `/onboarding` sem nenhum round-trip.
+- `src/pages/Auth.tsx`: no submit de `signup`, após sucesso chamar `navigate('/onboarding', { replace: true })` imediatamente (não esperar redirect via `Navigate`).
+- Pré-carregar o chunk da triagem (`import('@/components/onboarding/CadastroOnboardingOverlay')`) assim que o usuário focar o campo de e-mail no modo signup, para o overlay abrir sem esperar bundle.
 
-2. **Etapa 2 — Filtro forte de candidatos a capítulo**
-   - Aceitar como capítulo apenas headings que tenham conteúdo real logo abaixo ou que sejam claramente início de seção principal.
-   - Rejeitar automaticamente:
-     - título igual ao nome do livro em página inicial
-     - `ÍNDICE`, `SUMÁRIO`, `APRESENTAÇÃO`, etc.
-     - headings de artigos legais isolados, ex.: `Art. 165`, `Art. 1º (...)`
-     - subtítulos curtos internos, ex.: `Exclusividade`, `Transparência`, `Unidade`, quando aparecerem dentro de uma seção maior
-     - capítulos com `conteudo_md` vazio ou quase vazio
+## 2) Triagem expandida com cenas Remotion (nome + funções)
 
-3. **Etapa 3 — Refino em “agentes”/passos separados**
-   - Reorganizar o refino em etapas explícitas:
-     - agente de limpeza de OCR por página
-     - agente de identificação de estrutura do livro
-     - agente de validação do sumário
-     - agente de montagem final dos capítulos
-   - Cada etapa terá validação determinística antes de seguir para a próxima.
+A versão ativa é a `TriagemVersaoC`. Vou estender o fluxo:
 
-4. **Etapa 4 — Validador final do `capitulos_json`**
-   - Antes de salvar no banco, validar:
-     - nenhum capítulo vazio
-     - nenhum capítulo iniciando em página classificada como índice/capa
-     - páginas em ordem crescente
-     - títulos limpos e sem numeração duplicada indevida
-     - quantidade mínima de texto útil por capítulo
-   - Se o sumário gerado pela IA falhar, usar fallback seguro: agrupar por páginas de conteúdo reais em vez de salvar capítulos quebrados.
+Passos atuais: `abertura → persona → interesses → dores → nome → whatsapp → finish`.
 
-5. **Etapa 5 — Defesa no leitor**
-   - Ajustar o `LeitorNativo` para não renderizar capa de capítulo quando o capítulo não tiver páginas/conteúdo real.
-   - Isso evita que registros antigos ainda mostrem “capítulo fantasma” enquanto o livro não for reextraído.
+Novo fluxo:
 
-6. **Etapa 6 — Reprocessar e validar o livro afetado**
-   - Forçar nova extração/refino do livro **Orçamento Público** (`1169`).
-   - Conferir no banco se:
-     - o primeiro capítulo real não é mais capa/índice
-     - `ÍNDICE` não aparece como capítulo
-     - os capítulos têm `conteudo_md` preenchido
-     - o sumário do leitor ficou limpo.
+```text
+abertura → persona → interesses → dores → nome → whatsapp
+        → cena Remotion "Prazer, {nome}"   (2.5s)
+        → cena Remotion "Biblioteca"       (3s)
+        → cena Remotion "Radar de Leis"    (3s)
+        → cena Remotion "Horus WhatsApp"   (3s)
+        → cena Remotion "Notificações"     (3s)
+        → cena final "Bora estudar, {nome}" (2s) → onFinished
+```
 
-### Arquivos principais
+Implementação (sem bundlar Remotion no app — usar Framer Motion já presente, no mesmo estilo cinematográfico do `HorusIntroVideo`):
 
-- `supabase/functions/biblioteca-ocr-mistral/index.ts`
-  - OCR, limpeza, identificação de sumário e montagem de capítulos.
-- `src/components/biblioteca/LeitorNativo.tsx`
-  - Renderização final do sumário/capítulos no app.
+- Novo arquivo `src/components/onboarding/CadastroFeaturesReel.tsx`:
+  - Full-screen, gradiente por cena (cores já usadas em `CARD_BG`), tipografia grande serifada + sans, ícones lucide-react animados (BookOpen, Radar, MessageCircle, Bell).
+  - Cada cena com entrada/saída (blur+scale+stagger de palavras), motion coreografada por `useReducedMotion` e `AnimatePresence mode="wait"`.
+  - Auto-avanço por timers com barra de progresso segmentada no topo (mesma do TriagemVersaoC).
+  - Botão "Pular" discreto (canto superior direito) para quem quer ir direto.
+  - Áudio: reutiliza `useTriagemAudio` (whoosh entre cenas, ding no final).
+- `TriagemVersaoC.tsx`:
+  - Adicionar step `features` após `whatsapp`. Ao entrar em `features`, renderizar `<CadastroFeaturesReel nome={data.nome} onDone={() => onFinished(next)} />`.
+  - Ajustar `advance()` para não chamar `onFinished` direto no último passo — passar por `features` primeiro.
+- Layout dos cartões: aumentar `padding` top/bottom (`pt-[calc(env(safe-area-inset-top)+16px)]` e `pb-[calc(env(safe-area-inset-bottom)+16px)]`), garantir `max-h-dvh` com scroll interno em telas curtas; textos e botões com `clamp()` para responsivo.
 
-### Resultado esperado
+## 3) Performance da triagem
 
-O OCR pode continuar usando o Mistral para extrair texto, mas o refino não vai mais confiar cegamente nos headings extraídos. O livro passará por validação em camadas antes de salvar, reduzindo os erros de sumário, capítulos vazios e páginas puladas.
+- Remover re-renders desnecessários: mover `PERSONAS/DORES/INTERESSES` para fora do componente (já estão), mas envolver handlers em `useCallback` e cards em `memo`.
+- Trocar `AnimatePresence` de página inteira por transições mais leves (`initial=false` na primeira montagem, `layout` só onde necessário).
+- Pré-carregar ícones e fontes: `<link rel="preload">` das duas fontes usadas.
+- Lazy import de `framer-motion` já está no bundle; garantir que `CadastroFeaturesReel` seja `React.lazy` para não engordar a tela inicial.
+- Corrigir warnings de console que apareçam durante execução da triagem (checar `code--read_console_logs` após build).
+
+## 4) Horus onboarding — subir a faixa e otimizar
+
+- `src/components/horus/onboarding/HorusIntroVideo.tsx`: a faixa inferior de efeitos hoje fica em `bottom: 0`. Ajustar para `bottom: calc(env(safe-area-inset-bottom, 0px) + 12%)` (respiro do gesture bar e mais protagonismo visual), com fallback responsivo por altura.
+- Reduzir custo de render: 
+  - `will-change: transform, opacity` só nos elementos animados ativos.
+  - Remover `filter: blur()` em elementos que se movem — trocar por gradiente radial estático + opacidade animada.
+  - Cortar partículas em `< 380px` de largura (dispositivos pequenos) para 40% do total.
+  - Usar `AnimatePresence` com `mode="popLayout"` em vez de `wait` onde possível.
+
+---
+
+## Detalhes técnicos
+
+Arquivos criados:
+- `src/components/onboarding/CadastroFeaturesReel.tsx` — reel de 5 cenas + saudação com nome.
+
+Arquivos editados:
+- `src/App.tsx` — ProtectedRoute otimista para novo usuário.
+- `src/hooks/useAuth.tsx` — flag `just_signed_up` no sessionStorage.
+- `src/pages/Auth.tsx` — navigate imediato + preload do chunk.
+- `src/components/onboarding/versoes/TriagemVersaoC.tsx` — passo `features`, margens safe-area, memo/callback.
+- `src/components/horus/onboarding/HorusIntroVideo.tsx` — subir faixa inferior, cortar custo de blur/partículas.
+
+Não altera schema, edge functions ou lógica de negócio.
+
+## Fora de escopo
+
+- Triagens A e B (usuário está usando C como ativa).
+- Fluxo de Google/Apple sign-in (já vai para `/onboarding` normalmente).
+- Rebuild com Remotion CLI (o "estilo Remotion" será feito com Framer Motion já instalado — mesma abordagem do `HorusIntroVideo` atual).
