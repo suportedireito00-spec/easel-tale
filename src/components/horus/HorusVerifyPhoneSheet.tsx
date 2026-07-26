@@ -44,6 +44,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
   const [sending, setSending] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [nome, setNome] = useState('');
+  const [transferred, setTransferred] = useState(false);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
