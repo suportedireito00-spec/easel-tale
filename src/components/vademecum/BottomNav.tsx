@@ -270,6 +270,8 @@ const BottomNav = () => {
             onPointerEnter={() => { import('@/pages/MeuEspaco.tsx'); warmMeuEspaco(); }}
             onPointerDown={() => { import('@/pages/MeuEspaco.tsx'); warmMeuEspaco(); }}
             onTouchStart={() => { import('@/pages/MeuEspaco.tsx'); warmMeuEspaco(); }}
+            data-track="bottom_nav_click"
+            data-track-destino="meu-espaco"
             className="flex flex-col items-center justify-end py-1.5 text-foreground hover:text-primary transition-colors"
           >
             <span className="relative flex flex-col items-center gap-1.5 overflow-hidden px-2 py-1 rounded-lg">
