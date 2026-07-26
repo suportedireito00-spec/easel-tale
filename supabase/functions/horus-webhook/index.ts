@@ -196,7 +196,10 @@ function extractMessage(body: any): ParsedMessage | null {
       d?.fromMe
   );
   const messageId = String(
-    msg?.key?.id || d?.key?.id || info?.Id || info?.id || msg?.id || d?.id || "",
+    msg?.key?.id || d?.key?.id ||
+    info?.Id || info?.id || info?.ID ||
+    msg?.id || msg?.Id || msg?.ID ||
+    d?.id || d?.Id || d?.ID || "",
   );
   const participant = String(
     msg?.key?.participant || d?.key?.participant || info?.Participant || info?.participant || "",
@@ -241,15 +244,23 @@ function extractMessage(body: any): ParsedMessage | null {
     d?.Body ||
     "";
 
-  // Detecta mídia (áudio / imagem / documento)
+  // Detecta mídia (áudio / imagem / documento).
+  // Evolution Go às vezes entrega `base64` no nível do Message (irmão de
+  // imageMessage/audioMessage/documentMessage), não dentro do nó. Extraímos
+  // esse base64 "parent-level" como fallback.
+  const parentB64 = String(
+    (nested as any)?.base64 || (msg as any)?.base64 || (d as any)?.base64 || ""
+  ).trim() || undefined;
   const audioNode = nested?.audioMessage || nested?.AudioMessage || nested?.pttMessage || msg?.audioMessage;
   const imageNode = nested?.imageMessage || nested?.ImageMessage || msg?.imageMessage;
   const docNode = nested?.documentMessage || nested?.DocumentMessage
     || nested?.documentWithCaptionMessage?.message?.documentMessage || msg?.documentMessage;
   let media: ParsedMedia | undefined;
-  if (remoteJid && messageId) {
+  // Permite mídia sem messageId (base64 inline não precisa de download).
+  if (remoteJid && (audioNode || imageNode || docNode)) {
     const key = { remoteJid: String(remoteJid), id: messageId, fromMe, participant };
-    const b64 = (node: any) => String(node?.base64 || node?.data || node?.buffer || "").trim() || undefined;
+    const b64 = (node: any) =>
+      String(node?.base64 || node?.data || node?.buffer || "").trim() || parentB64;
     if (audioNode) {
       media = { type: "audio", mimetype: String(audioNode.mimetype || audioNode.mimeType || "audio/ogg"), caption: "", key, base64: b64(audioNode) };
     } else if (imageNode) {
