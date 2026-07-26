@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { initAnalytics, trackPageview, setAnalyticsUser } from "@/lib/analytics";
+import { initAnalytics, trackPageview, setAnalyticsUserWithProfile } from "@/lib/analytics";
+import { useScreenTracking } from "@/lib/screenTracking";
 import { initNavTelemetry, markRouteChange } from "@/lib/navTelemetry";
 import { prefetchNearby } from "@/lib/nearbyPrefetch";
 
