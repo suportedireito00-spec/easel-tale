@@ -7,8 +7,8 @@ import { Loader2, Download, ShieldAlert, KeyRound, Copy, Github, CheckCircle2, X
 import { PageHeader } from '@/components/vademecum/PageHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import workflowSource from '../../.github/workflows/build-android.yml?raw';
-import workflowSourceIos from '../../.github/workflows/build-ios.yml?raw';
+import workflowSource from '@/generated/workflows/build-android.yml?raw';
+import workflowSourceIos from '@/generated/workflows/build-ios.yml?raw';
 import { AdminGithubTabs } from '@/components/admin/AdminGithubTabs';
 import { useSharedGithubRepo } from '@/hooks/useSharedGithubRepo';
 
