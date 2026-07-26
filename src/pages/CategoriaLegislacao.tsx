@@ -251,6 +251,33 @@ const CategoriaLegislacao = () => {
     return () => { cancelled = true; };
   }, [selectedTabelaNome]);
 
+  // Hidrata os favoritos (Meus Artigos) do usuário para a lei selecionada.
+  useEffect(() => {
+    if (!selectedTabelaNome) { setFavArtigoNumeros(new Set()); return; }
+    let cancelled = false;
+    const load = () => {
+      listNumerosFavoritosByTabela(selectedTabelaNome).then((nums) => {
+        if (!cancelled) setFavArtigoNumeros(new Set(nums));
+      }).catch(() => {});
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener(ARTIGOS_FAV_EVENT, onChange);
+    return () => { cancelled = true; window.removeEventListener(ARTIGOS_FAV_EVENT, onChange); };
+  }, [selectedTabelaNome]);
+
+  // Re-render quando o favorito da própria lei mudar.
+  useEffect(() => {
+    const bump = () => setLeiFavToggle((n) => n + 1);
+    window.addEventListener(LEIS_FAVORITOS_EVENT, bump);
+    window.addEventListener('storage', bump);
+    return () => {
+      window.removeEventListener(LEIS_FAVORITOS_EVENT, bump);
+      window.removeEventListener('storage', bump);
+    };
+  }, []);
+
+
   // Fetch DB alteracoes when novidades panel opens
   useEffect(() => {
     if (overlayPanel !== 'novidades' || !selectedTabelaNome) return;
