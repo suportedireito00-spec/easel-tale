@@ -60,14 +60,23 @@ const ProviderTag = ({ provider }: { provider?: string | null }) => {
   );
 };
 
-const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+const dayRange = (d: Date) => {
+  const start = new Date(d);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start: start.toISOString(), end: end.toISOString() };
 };
+
+const startOfToday = () => dayRange(new Date()).start;
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 const hora = (v?: string | null) =>
   v ? new Date(v).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 export function AdminHojeCards() {
   const [counts, setCounts] = useState<Record<CardId, number>>({ online: 0, cadastros: 0, trial: 0 });
@@ -75,6 +84,7 @@ export function AdminHojeCards() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [dossie, setDossie] = useState<Row | null>(null);
+  const [dia, setDia] = useState<Date>(() => new Date());
 
   const load = useCallback(async () => {
     const since = startOfToday();
@@ -97,18 +107,18 @@ export function AdminHojeCards() {
     return () => clearInterval(t);
   }, [load]);
 
-  const openCard = async (id: CardId) => {
-    setOpen(id);
+  const fetchRows = useCallback(async (id: CardId, date: Date) => {
     setLoading(true);
     setRows([]);
-    const since = startOfToday();
+    const { start, end } = dayRange(date);
     const pendingIds: string[] = [];
     try {
       if (id === 'online') {
         const { data } = await supabase
           .from('user_activity_log' as any)
           .select('user_id, email, display_name, current_route, last_seen_at')
-          .gte('last_seen_at', since)
+          .gte('last_seen_at', start)
+          .lt('last_seen_at', end)
           .order('last_seen_at', { ascending: false })
           .limit(300);
         const seen = new Set<string>();
@@ -128,7 +138,8 @@ export function AdminHojeCards() {
         const { data } = await supabase
           .from('profiles' as any)
           .select('id, full_name, email, created_at')
-          .gte('created_at', since)
+          .gte('created_at', start)
+          .lt('created_at', end)
           .order('created_at', { ascending: false })
           .limit(300);
         setRows(
@@ -145,7 +156,8 @@ export function AdminHojeCards() {
         const { data } = await supabase
           .from('play_subscriptions' as any)
           .select('id, user_id, product_id, base_plan_id, status, created_at')
-          .gte('created_at', since)
+          .gte('created_at', start)
+          .lt('created_at', end)
           .order('created_at', { ascending: false })
           .limit(300);
         setRows(
@@ -167,7 +179,27 @@ export function AdminHojeCards() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const openCard = (id: CardId) => {
+    const hoje = new Date();
+    setOpen(id);
+    setDia(hoje);
+    fetchRows(id, hoje);
   };
+
+  const selecionarDia = (d: Date) => {
+    setDia(d);
+    if (open) fetchRows(open, d);
+  };
+
+  const dias = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    return d;
+  });
+
 
   const CARDS: { id: CardId; label: string; icon: any }[] = [
     { id: 'online', label: 'Online hoje', icon: Radio },
