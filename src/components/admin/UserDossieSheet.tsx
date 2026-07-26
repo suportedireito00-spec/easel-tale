@@ -160,6 +160,12 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
   const maisEngajada = d ? [...d.funcoes].sort((a, b) => b.segundos - a.segundos)[0] : undefined;
   const perfilTipos: string[] = d?.perfil?.perfil_tipos || [];
   const maxHits = Math.max(1, ...(d?.funcoes || []).map((f) => f.hits));
+  const telefone =
+    d?.horus?.phone_e164 ||
+    d?.perfil?.whatsapp_number ||
+    d?.perfil?.telefone ||
+    d?.horusStats?.telefone ||
+    null;
 
   const Stat = ({ icon: Icon, label, value }: any) => (
     <div className="rounded-2xl border border-border/60 bg-secondary/30 px-3 py-2.5">
