@@ -3542,7 +3542,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
               <span className="font-body text-sm font-medium max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-0">Funções</span>
             </button>
             <button
-              onClick={() => setShowPraticarSheet(true)}
+              onClick={() => gateFeature('praticar', 'praticar', 'Praticar', () => setShowPraticarSheet(true))}
               className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-foreground hover:bg-secondary transition-colors"
               title="Praticar"
               aria-label="Praticar"
