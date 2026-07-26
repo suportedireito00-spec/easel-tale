@@ -416,6 +416,47 @@ export function AdminHojeCards() {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={!!provOpen} onOpenChange={(v) => !v && setProvOpen(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
+          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
+            <SheetTitle className="font-display text-base font-bold text-foreground">
+              Contas · {provOpen === 'google' ? 'Google' : provOpen === 'apple' ? 'Apple' : 'E-mail'}
+            </SheetTitle>
+            <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
+              {provLoading ? 'Carregando…' : `${provRows.length} usuário${provRows.length === 1 ? '' : 's'}`}
+            </p>
+          </SheetHeader>
+          <div className="p-3">
+            {provLoading ? (
+              <div className="flex justify-center py-10 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+            ) : provRows.length === 0 ? (
+              <p className="font-body text-sm text-muted-foreground text-center py-10">Nenhum usuário.</p>
+            ) : (
+              <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
+                {provRows.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setDossie(r)}
+                    className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                      {r.subtitle && (
+                        <div className="font-body text-[11px] text-muted-foreground truncate">{r.subtitle}</div>
+                      )}
+                    </div>
+                    <ProviderTag provider={r.provider} />
+                    <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
 
       <UserDossieSheet
