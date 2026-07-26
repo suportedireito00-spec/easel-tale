@@ -507,6 +507,7 @@ function AnimatedRoutes() {
         <Routes location={location} key={location.pathname}>
           <Route path="/auth" element={<Auth />} />
           <Route path="/landing" element={<Landing />} />
+          <Route path="/ir/*" element={<SmartLink />} />
           <Route path="/privacidade" element={<Privacidade />} />
           <Route path="/termos" element={<Termos />} />
           <Route path="/excluir-conta" element={<ExcluirContaPublico />} />
