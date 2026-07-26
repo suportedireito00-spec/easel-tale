@@ -42,6 +42,7 @@ import { usePushJourneyTracker } from "@/hooks/usePushJourneyTracker";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useHorusStatsSync } from "@/hooks/useHorusStatsSync";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
+import { useProfileSummary } from "@/hooks/useProfileSummary";
 import brasaoImgAsset from '@/assets/brasao-republica.webp';
 const brasaoImg = brasaoImgAsset;
 import { Loader2 } from "lucide-react";
