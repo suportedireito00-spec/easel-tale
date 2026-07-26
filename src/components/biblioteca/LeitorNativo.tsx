@@ -448,19 +448,12 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
         return paginasGlobais;
       };
 
+      const hasTextoUtil = (md: string) =>
+        md.replace(/<!--[^>]*-->/g, '').replace(/^#{1,6}\s+/gm, '').replace(/\s+/g, ' ').trim().length >= 40;
+
       capitulos.forEach((cap, cIdx) => {
         const numero = cap.numero ?? cIdx + 1;
         const titCap = (cap.titulo || `Capítulo ${numero}`).trim();
-        // Capa
-        out.push({
-          index: idxCounter++,
-          ocrPage: Array.isArray(cap.paginas) && cap.paginas.length ? Number(cap.paginas[0]) : cIdx + 1,
-          chapterIdx: cIdx,
-          chapterTitulo: titCap,
-          kind: 'cover',
-          md: '',
-          cover: { numero: `CAPÍTULO ${numero}`, titulo: titCap },
-        });
         // Conteúdo do capítulo
         const conteudoCap = String(cap.conteudo_md || '').trim();
         let paginado: Array<{ ocrPage: number; md: string }> = [];
@@ -471,15 +464,27 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
           const start = Number(cap.paginas[0]);
           const end = Number(cap.paginas[cap.paginas.length - 1]);
           const proxCap = capitulos[cIdx + 1];
-          const proxStart = Array.isArray(proxCap?.paginas) && proxCap!.paginas!.length
-            ? Number(proxCap!.paginas![0])
+          const proxStart = Array.isArray(proxCap?.paginas) && proxCap.paginas.length
+            ? Number(proxCap.paginas[0])
             : Number.POSITIVE_INFINITY;
           const limite = Math.min(end, proxStart - 1);
           paginado = getPaginasGlobais().filter(
             (p) => p.ocrPage >= start && p.ocrPage <= limite,
           );
         }
-        for (const p of paginado) {
+        const paginasValidas = paginado.filter((p) => hasTextoUtil(p.md));
+        if (!paginasValidas.length) return;
+        // Capa — só aparece se houver conteúdo real para o capítulo.
+        out.push({
+          index: idxCounter++,
+          ocrPage: Array.isArray(cap.paginas) && cap.paginas.length ? Number(cap.paginas[0]) : paginasValidas[0].ocrPage,
+          chapterIdx: cIdx,
+          chapterTitulo: titCap,
+          kind: 'cover',
+          md: '',
+          cover: { numero: `CAPÍTULO ${numero}`, titulo: titCap },
+        });
+        for (const p of paginasValidas) {
           out.push({
             index: idxCounter++,
             ocrPage: p.ocrPage,
