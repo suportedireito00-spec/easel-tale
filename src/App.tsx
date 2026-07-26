@@ -471,9 +471,9 @@ function AnimatedRoutes() {
   useEffect(() => {
     setAnalyticsUserWithProfile(user?.id ?? null, {
       email: user?.email,
-      is_premium: profile?.is_premium ?? false,
+      is_premium: profile?.isPremium ?? false,
     });
-  }, [user?.id, profile?.is_premium]);
+  }, [user?.id, profile?.isPremium]);
 
   // Sem usuário logado, a Home persistente não monta.
   // Renderiza a landing imediatamente na raiz para nunca deixar tela preta,
