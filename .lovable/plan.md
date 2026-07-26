@@ -1,64 +1,53 @@
-## Diagnóstico
+# Três ajustes no app nativo Android
 
-Verifiquei o banco e a Edge Function `play-billing-webhook`:
+## 1. Faixa amarela em dialogs do sistema (copiar/colar, biometria)
 
-- `play_subscriptions` tem **10 linhas, 0 delas com `latest_notification_at`** — ou seja, **nenhuma RTDN do Google já chegou ao webhook**, nem de compra, nem de renovação, nem de reembolso.
-- A função `play-billing-webhook` **não tem nenhum log de invocação**. Ela está publicada, mas o Pub/Sub do Google nunca postou nela.
-- Mesmo se a RTDN chegasse, o código atual só trata `subscriptionNotification`. Reembolso/estorno vem como `voidedPurchaseNotification` e hoje cai no `return 'ignored'` — seria ignorado silenciosamente.
-- `useSubscription` decide "premium" lendo `play_subscriptions` (status ACTIVE + `expires_at` no futuro). Como a linha do usuário reembolsado continua ACTIVE, ele segue premium.
+**Causa confirmada:** o tema base `AppTheme.NoActionBar` (aplicado à MainActivity após o splash) está com `android:windowBackground = @color/splash_bg` (#FFD500). Dialogs flutuantes do sistema — toolbar de copiar/colar, prompt do Credential Manager (o tal "Ativar login por biometria") — puxam o `windowBackground` da activity host como fundo, então aparecem com essa mancha amarela sobre o app escuro.
 
-Ou seja, dois problemas somados: (1) o canal RTDN nunca foi de fato ligado ao endpoint, e (2) o handler não sabe lidar com reembolso.
+**Correção em `.github/workflows/build-android.yml`:**
+- Adicionar `<color name="app_bg">#0a0f1a</color>` em `values/colors.xml` (fundo escuro do app).
+- Em **todas** as reescritas do `AppTheme.NoActionBar` (linhas ~391‑398 e ~432‑441): trocar `android:windowBackground` de `@color/splash_bg` para `@color/app_bg`.
+- Manter `AppTheme.NoActionBarLaunch` com `splash_bg` (é o tema só do splash — Android 12 usa `windowSplashScreenBackground`, versões anteriores usam `windowBackground`).
+- Confirmar que `AppTheme.NoActionBarLaunch` tem `postSplashScreenTheme = AppTheme.NoActionBar` (já é o caso implícito ao herdar).
 
-## O que vou fazer
+Resultado: splash inicial continua amarelo, mas a MainActivity passa a viver sobre fundo escuro e os dialogs do sistema deixam de ficar amarelos.
 
-### 1) Tratar reembolso/estorno no webhook (`play-billing-webhook`)
-- Adicionar branch para `voidedPurchaseNotification` (é o evento que o Google dispara em reembolso do admin, chargeback e refund do usuário):
-  - Localizar a linha em `play_subscriptions` pelo `purchaseToken` (ou `orderId` no caso de compras únicas).
-  - Marcar `status = 'SUBSCRIPTION_STATE_CANCELED'`, `cancel_reason = 'REFUND'` (ou o `refundType` recebido), `auto_renewing = false` e **`expires_at = now()`** — isso derruba o premium imediatamente, porque `is_premium_user()` e `useSubscription` olham `expires_at`.
-  - Gravar `latest_notification_type = 'VOIDED_PURCHASE'` e `raw_payload`.
-- Manter o branch atual de `subscriptionNotification`, mas: quando `notificationType ∈ {SUBSCRIPTION_REVOKED (12), SUBSCRIPTION_EXPIRED (13), SUBSCRIPTION_CANCELED (3)}` e o Google devolver `expiryTimeMillis` no passado (ou o revoke), forçar `expires_at` para agora para não depender do relógio do cliente.
-- Como o front já tem `postgres_changes` em `play_subscriptions` filtrado por `user_id`, assim que a linha for atualizada o app rebaixa para gratuito **em tempo real, sem precisar reabrir**.
+## 2. Remover o prompt "Ativar login por biometria"
 
-### 2) Reconciliação automática (rede de segurança se o Pub/Sub falhar de novo)
-- Novo cron diário chamando a **Voided Purchases API** (`purchases.voidedpurchases.list`) das últimas 72h e aplicando o mesmo update do item 1 em qualquer `purchase_token` encontrado. Assim, mesmo se o Pub/Sub estiver desconfigurado, o acesso cai em até 24h automaticamente.
-- Complementar: para cada linha em `play_subscriptions` com `status = ACTIVE` e `expires_at < now()`, marcar como `EXPIRED` (job já pode ser o mesmo cron).
+**Diagnóstico:** não existe plugin de biometria no projeto (nenhum `capacitor-native-biometric`/`BiometricAuth` em `package.json` nem em `src/`). O popup amarelo da segunda screenshot é o **Credential Manager do Android** oferecendo salvar a credencial do Google com biometria — vem embutido no fluxo do `@capacitor-community/social-login` (`SocialLogin.google`) via Credential Manager, não é código nosso.
 
-### 3) Ação manual imediata para o usuário atual
-Adicionar uma função admin `play-revoke-access` (invocável pelo painel) que recebe `user_id` (ou email) e:
-- Marca todas as linhas dele em `play_subscriptions` como CANCELED + `expires_at = now()`.
-- Isso resolve **este** caso agora, sem esperar o cron.
-- Me passe o email do usuário reembolsado que eu já rodo essa revogação no fim da implementação.
+**Correção:** no `capacitor.config.ts`, dentro do bloco `plugins.SocialLogin.google`, adicionar a opção que desliga o auto-select/prompt do Credential Manager após o login, para que ele não peça pra salvar/ativar biometria em seguida. Concretamente, remover o uso do Credential Manager modernizado e manter só o fallback do `@codetrix-studio/capacitor-google-auth` (que já está configurado em `plugins.GoogleAuth` e não dispara esse prompt).
+- Remover o bloco `SocialLogin` inteiro do `capacitor.config.ts`.
+- Remover o pacote `@capacitor-community/social-login` do `package.json` e qualquer import/uso em `src/` (checar `useAuth`, telas de login).
+- Trocar as chamadas de login social para usar apenas `GoogleAuth.signIn()` (do plugin `@codetrix-studio/capacitor-google-auth`) e o Apple Sign-In nativo.
 
-### 4) Conferir o canal RTDN (config no Google Cloud / Play Console — fora do código)
-O motivo raiz de nenhuma notificação ter chegado é configuração. Vou te entregar as instruções exatas para revisar:
-- **Play Console → Monetização → Configurações → Notificações em tempo real do desenvolvedor**: precisa apontar para um tópico Pub/Sub (ex.: `projects/<gcp>/topics/play-rtdn`) e o botão "Enviar notificação de teste" precisa retornar OK.
-- **Google Cloud Console → Pub/Sub → Assinaturas**: criar/verificar uma assinatura do tipo **Push** apontando para
-  `https://<PROJECT_REF>.functions.supabase.co/play-billing-webhook?token=<GOOGLE_PLAY_PUBSUB_VERIFICATION_TOKEN>`
-  (o segredo `GOOGLE_PLAY_PUBSUB_VERIFICATION_TOKEN` já existe no projeto — o webhook rejeita 401 se o token não bater, então isso também explica silêncio).
-- Conta de serviço da Play Console precisa ter permissão de publicar no tópico (`roles/pubsub.publisher`).
-- Rodar de novo o "Enviar notificação de teste" — precisa aparecer log em `play-billing-webhook`.
+Efeito: sem Credential Manager, o Android não vai mais oferecer salvar credencial com biometria depois do login.
 
-Não consigo executar essa parte por você (é config no Google), mas depois de ajustar, o item 1 já garante que o próximo reembolso derruba acesso automaticamente, e o item 2 garante que mesmo sem RTDN funcionando o acesso cai em até 24h.
+> Se você preferir manter o Credential Manager mas apenas suprimir o prompt de "salvar com biometria", me diz — nesse caso a alternativa é passar `autoSelectEnabled: false` e trocar o fluxo para `signInWithGoogleId` sem `savePassword`. O caminho recomendado acima é remover o plugin, que é o que atende ao seu pedido literal de "não deve ter mais o capacitor de biometria".
 
-## Detalhes técnicos
+## 3. Ícone do app maior e usando o logo enviado
 
-**Mudanças em `supabase/functions/play-billing-webhook/index.ts`:**
-- Após decodificar o envelope, ramificar em `decoded.subscriptionNotification`, `decoded.voidedPurchaseNotification`, `decoded.oneTimeProductNotification` (esse último pode ser só logado por ora).
-- `voidedPurchaseNotification` = `{ purchaseToken, orderId, productType, refundType }`. Update direto por `purchase_token` — não precisa chamar Google API.
-- Extrair `mapStatus` para reconhecer `notificationType` (números 1..13) explicitamente em vez de só olhar `expiryTimeMillis`.
+Hoje o ícone adaptativo é gerado com `iconBackgroundColor #EFE039` + `icon-foreground.png` renderizado a 66% dentro do círculo (Android encolhe ainda mais em launchers com máscara circular) — por isso o "V" fica pequeno como na screenshot da direita.
 
-**Novo cron `play-reconcile-voided`:**
-- Roda a cada 24h.
-- Chama `GET /androidpublisher/v3/applications/{package}/purchases/voidedpurchases?startTime=<now-72h>`.
-- Faz upsert nas linhas afetadas exatamente como o webhook faria.
+**Correção:**
+1. Substituir `resources/icon.png` e `resources/icon-foreground.png` pela imagem enviada (`Yellow_color_EFE039_202607222220.jpeg`), padronizada para 1024×1024 PNG. Como o brasão preto já ocupa quase todo o quadro do arquivo enviado, o "V" vai aparecer bem maior no launcher.
+2. Ajustar `resources/icon-background.png` para o mesmo amarelo sólido `#EFE039` (fundo do adaptive icon).
+3. No workflow, na chamada `bunx capacitor-assets generate` (linha 299), manter `--iconBackgroundColor '#EFE039'` (já correto).
+4. Regenerar `icon-monochrome.png` (usado no themed icon do Android 13+) a partir do mesmo brasão em preto sobre transparente.
 
-**Nova função `play-revoke-access` (admin-only):**
-- Verifica `has_role(auth.uid(), 'admin')`.
-- Recebe `{ userId }` ou `{ email }`, resolve para user_id via `profiles`, e faz o update em `play_subscriptions`.
+Depois do próximo build, o ícone na home vai ficar como o "Vacatio" da imagem `image-8.png` (à esquerda) — brasão grande preenchendo o badge amarelo.
 
-**Sem mudanças no front** — `useSubscription` já reage a UPDATE em `play_subscriptions` via `postgres_changes`, então o usuário perde o premium na hora.
+---
 
-## O que preciso de você depois de aprovar
+## Como aplicar / testar
 
-1. Email (ou user_id) do usuário reembolsado, pra eu rodar a revogação manual assim que a função `play-revoke-access` estiver no ar.
-2. Confirmar depois se o "Enviar notificação de teste" no Play Console gera log em `play-billing-webhook` — se não gerar, o problema está 100% na config do Pub/Sub e eu te ajudo a debugar passo a passo.
+Os três ajustes só aparecem no APK/AAB gerado pelo workflow `build-android.yml` do GitHub Actions. Depois do merge:
+1. Rodar o workflow `build-android.yml`.
+2. Instalar o APK gerado.
+3. Verificar: (a) toolbar de copiar/colar sem fundo amarelo, (b) fluxo de login Google sem prompt de biometria, (c) ícone na home com o brasão grande.
+
+## Detalhes técnicos (para referência)
+
+- Arquivos tocados: `.github/workflows/build-android.yml`, `capacitor.config.ts`, `package.json`, `resources/icon.png`, `resources/icon-foreground.png`, `resources/icon-background.png`, `resources/icon-monochrome.png`, e call sites de `SocialLogin` em `src/` (a mapear no build).
+- Nada no runtime da PWA/web muda — o `SocialLogin` só é usado em Capacitor nativo.
+- O upload da imagem vira `resources/icon.png` via `cp` + normalização com `sharp`/`convert` para garantir 1024×1024 RGBA.
