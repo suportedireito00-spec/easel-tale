@@ -128,7 +128,7 @@ export function denyConsent() {
   fbDenyConsent();
 }
 
-/** Route change → dispara page_view. */
+/** Route change → dispara page_view / screen_view unificado. */
 export function trackPageview(path: string, title?: string) {
   if (typeof window === "undefined") return;
   void nativeLogScreen(path);
@@ -141,6 +141,7 @@ export function trackPageview(path: string, title?: string) {
     send_to: GA_MEASUREMENT_ID,
   });
   fbPageView();
+  trackScreen(path, { page_title: title || document.title });
 }
 
 /** Evento customizado. Use nomes em snake_case (padrão GA4). */
@@ -162,4 +163,13 @@ export function setAnalyticsUser(userId: string | null) {
   });
   const adsId = getAdsId();
   if (adsId) window.gtag("set", "user_id", userId || undefined);
+}
+
+/** Define user_id e propriedades cross-platform. */
+export function setAnalyticsUserWithProfile(
+  userId: string | null,
+  profile?: { email?: string | null; phone?: string | null; is_premium?: boolean }
+) {
+  setAnalyticsUser(userId);
+  trackSetUser(userId, profile);
 }
