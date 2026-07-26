@@ -251,7 +251,14 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
             return (
               <button
                 key={cat.id}
-                onClick={() => navigate(`/legislacao/${tipoToSlug(cat.tipo)}`)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const target = `/legislacao/${tipoToSlug(cat.tipo)}`;
+                  console.log('[DesktopSidebar] categoria click', cat.label, '→', target);
+                  navigate(target);
+                }}
                 title={collapsed ? cat.label : undefined}
                 className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3 mx-1'} py-1.5 rounded-lg text-[13px] font-body text-foreground/75 hover:bg-secondary hover:text-foreground transition-colors group`}
               >
