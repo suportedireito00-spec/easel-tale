@@ -234,6 +234,8 @@ const BottomNav = () => {
               for (const f of FERRAMENTAS) if (f.prefetch) prefetchRoute(f.prefetch);
             }}
             onClick={() => { haptic.light(); setFerramentasOpen(true); }}
+            data-track="bottom_nav_click"
+            data-track-destino="ferramentas"
             className="flex flex-col items-center justify-end -mt-11"
             aria-label="Ferramentas"
           >
