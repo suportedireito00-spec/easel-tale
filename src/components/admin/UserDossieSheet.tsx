@@ -214,7 +214,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
 
             <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
               <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
-                <Flame className="w-4.5 h-4.5 text-primary" /> Destaques
+                <Flame className="w-[18px] h-[18px] text-primary" /> Destaques
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -242,7 +242,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
 
             <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
               <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
-                <GraduationCap className="w-4.5 h-4.5 text-primary" /> Perfil
+                <GraduationCap className="w-[18px] h-[18px] text-primary" /> Perfil
               </div>
               <div className="flex flex-wrap gap-2">
                 {perfilTipos.length ? (
@@ -285,7 +285,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
 
             <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
               <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
-                <MessageCircle className="w-4.5 h-4.5 text-primary" /> Horus (WhatsApp)
+                <MessageCircle className="w-[18px] h-[18px] text-primary" /> Horus (WhatsApp)
               </div>
               {d.horus ? (
                 <>
@@ -322,7 +322,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
 
             <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3.5">
               <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
-                <LayoutGrid className="w-4.5 h-4.5 text-primary" /> Funções percorridas (30 dias)
+                <LayoutGrid className="w-[18px] h-[18px] text-primary" /> Funções percorridas (30 dias)
               </div>
               {d.funcoes.length === 0 ? (
                 <p className="font-body text-[15px] text-muted-foreground">Sem registros.</p>
@@ -350,7 +350,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
             {d.features.length > 0 && (
               <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-2.5">
                 <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
-                  <Activity className="w-4.5 h-4.5 text-primary" /> Recursos usados
+                  <Activity className="w-[18px] h-[18px] text-primary" /> Recursos usados
                 </div>
                 {d.features.map((f) => (
                   <div key={f.label} className="flex items-center justify-between gap-3 min-h-[28px]">
