@@ -201,13 +201,26 @@ export function AdminHojeCards() {
       <Sheet open={!!open} onOpenChange={(v) => !v && setOpen(null)}>
         <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
           <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
-            <SheetTitle className="font-display text-base font-bold text-foreground">
-              {open ? `${titles[open]} · ${rotuloDia}` : ''}
-            </SheetTitle>
-            <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
-              {loading ? 'Carregando…' : `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
-            </p>
+            <div className="flex items-start justify-between gap-3 pr-9">
+              <div className="min-w-0">
+                <SheetTitle className="font-display text-base font-bold text-foreground">
+                  {open ? `${titles[open]} · ${rotuloDia}` : ''}
+                </SheetTitle>
+                <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
+                  {loading ? 'Carregando…' : `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={abrirTotais}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 font-body text-[12px] font-semibold text-primary hover:bg-primary/20 active:bg-primary/30 transition-colors"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Totais
+              </button>
+            </div>
           </SheetHeader>
+
 
           <div className="border-b border-border/50 bg-background/95 sticky top-0 z-10">
             <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-none">
