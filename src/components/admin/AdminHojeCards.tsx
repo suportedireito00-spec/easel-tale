@@ -333,17 +333,23 @@ export function AdminHojeCards() {
                       const tot = Math.max(1, Number(totais.total || 1));
                       const pct = Math.round((v / tot) * 100);
                       return (
-                        <div key={p}>
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => abrirProvider(p)}
+                          className="w-full text-left rounded-xl px-1 py-1 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                        >
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <ProviderTag provider={p} />
-                            <span className="font-body text-[12.5px] text-foreground">
+                            <span className="font-body text-[12.5px] text-foreground inline-flex items-center gap-1">
                               {v} <span className="text-muted-foreground">({pct}%)</span>
+                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
                             <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
