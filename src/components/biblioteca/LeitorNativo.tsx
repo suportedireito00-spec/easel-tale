@@ -180,16 +180,18 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
         });
       }
 
-      const refinadoPronto = data.refino_status === 'pronto' && data.conteudo_md_refinado;
-      const refinoFalhou = data.refino_status === 'erro' && data.conteudo_md;
-      const brutoLiberado = data.status === 'pronto' && data.conteudo_md && !data.conteudo_md_refinado;
-      const contentToUse = refinadoPronto
-        ? data.conteudo_md_refinado
-        : refinoFalhou || brutoLiberado
-          ? data.conteudo_md
-          : null;
+      // Regra de "pronto para o usuário final":
+      //   Se existe QUALQUER conteúdo (refinado preferido, senão bruto), abrimos
+      //   direto — independentemente de refino_status. Isso garante que, quando
+      //   o admin já extraiu o livro, o usuário normal entra na leitura
+      //   nativa sem passar por tela de "processando" nem re-disparar o OCR.
+      const contentToUse = data.conteudo_md_refinado || data.conteudo_md || null;
+      if (data.refino_status === 'erro' && data.conteudo_md && !data.conteudo_md_refinado) {
+        // apenas aviso — o conteúdo bruto será usado
+      }
 
       if (data.status === 'pronto' && contentToUse) {
+
         setStatus('pronto');
         setConteudo(contentToUse);
         setSumario((data.sumario_json as SumarioItem[]) || []);
