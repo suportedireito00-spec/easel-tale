@@ -449,7 +449,14 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
       };
 
       const hasTextoUtil = (md: string) =>
-        md.replace(/<!--[^>]*-->/g, '').replace(/^#{1,6}\s+/gm, '').replace(/\s+/g, ' ').trim().length >= 40;
+        md
+          .replace(/<!--[^>]*-->/g, '')
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+          .replace(/\[[^\]]+\]\([^)]*\)/g, '$1')
+          .replace(/https?:\/\/\S+/g, '')
+          .replace(/^#{1,6}\s+/gm, '')
+          .replace(/\s+/g, ' ')
+          .trim().length >= 40;
 
       capitulos.forEach((cap, cIdx) => {
         const numero = cap.numero ?? cIdx + 1;
