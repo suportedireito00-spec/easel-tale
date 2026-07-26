@@ -68,7 +68,8 @@ const dayRange = (d: Date) => {
   return { start: start.toISOString(), end: end.toISOString() };
 };
 
-const startOfToday = () => dayRange(new Date()).start;
+const isoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
