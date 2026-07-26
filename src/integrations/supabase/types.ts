@@ -7412,6 +7412,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_gerenciar_usuario: {
+        Args: { _acao: string; _user_id: string }
+        Returns: Json
+      }
       admin_get_open_journey: {
         Args: { _campaign_id: string; _install_id: string; _user_id: string }
         Returns: {
