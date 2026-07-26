@@ -63,6 +63,8 @@ function TopTabs({ active, onChange }: { active: string; onChange: (t: any) => v
             <button
               key={t.id}
               onClick={() => { haptic.selection(); onChange(t.id); }}
+              data-track="horus_tab_switch"
+              data-tab={t.id}
               className="relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-body text-[12px] font-semibold transition-colors"
             >
               {isActive && (
