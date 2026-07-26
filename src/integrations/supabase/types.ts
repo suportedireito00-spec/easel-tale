@@ -2730,6 +2730,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dicionario_juridico: {
+        Row: {
+          created_at: string
+          exemplo_pratico: string | null
+          id: string
+          letra: string
+          palavra: string
+          significado: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exemplo_pratico?: string | null
+          id?: string
+          letra: string
+          palavra: string
+          significado: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exemplo_pratico?: string | null
+          id?: string
+          letra?: string
+          palavra?: string
+          significado?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feature_limits: {
         Row: {
           category: string
@@ -3731,6 +3761,114 @@ export type Database = {
         }
         Relationships: []
       }
+      informativos_stf: {
+        Row: {
+          created_at: string
+          data_publicacao: string | null
+          destaque: string | null
+          edicao: number
+          edicao_titulo: string | null
+          id: string
+          informacoes_adicionais: string | null
+          inteiro_teor: string | null
+          ordem: number
+          processo: string | null
+          ramo_direito: string | null
+          raw: string | null
+          secao: string | null
+          tema: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: string | null
+          edicao: number
+          edicao_titulo?: string | null
+          id?: string
+          informacoes_adicionais?: string | null
+          inteiro_teor?: string | null
+          ordem: number
+          processo?: string | null
+          ramo_direito?: string | null
+          raw?: string | null
+          secao?: string | null
+          tema?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: string | null
+          edicao?: number
+          edicao_titulo?: string | null
+          id?: string
+          informacoes_adicionais?: string | null
+          inteiro_teor?: string | null
+          ordem?: number
+          processo?: string | null
+          ramo_direito?: string | null
+          raw?: string | null
+          secao?: string | null
+          tema?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      informativos_stj: {
+        Row: {
+          created_at: string
+          data_publicacao: string | null
+          destaque: string | null
+          edicao: number
+          edicao_titulo: string | null
+          id: string
+          informacoes_adicionais: string | null
+          inteiro_teor: string | null
+          ordem: number
+          processo: string | null
+          ramo_direito: string | null
+          raw: string | null
+          secao: string | null
+          tema: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: string | null
+          edicao: number
+          edicao_titulo?: string | null
+          id?: string
+          informacoes_adicionais?: string | null
+          inteiro_teor?: string | null
+          ordem: number
+          processo?: string | null
+          ramo_direito?: string | null
+          raw?: string | null
+          secao?: string | null
+          tema?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_publicacao?: string | null
+          destaque?: string | null
+          edicao?: number
+          edicao_titulo?: string | null
+          id?: string
+          informacoes_adicionais?: string | null
+          inteiro_teor?: string | null
+          ordem?: number
+          processo?: string | null
+          ramo_direito?: string | null
+          raw?: string | null
+          secao?: string | null
+          tema?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jurisprudencia_cache: {
         Row: {
           corpus_lei_id: number
@@ -3841,6 +3979,199 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      jurisprudencia_prontas: {
+        Row: {
+          assunto: string | null
+          created_at: string
+          id: string
+          ordem: number
+          query_string: string | null
+          query_url: string
+          ramo: string
+          slug: string
+          titulo: string
+          tribunal: string
+          updated_at: string
+        }
+        Insert: {
+          assunto?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          query_string?: string | null
+          query_url: string
+          ramo: string
+          slug: string
+          titulo: string
+          tribunal: string
+          updated_at?: string
+        }
+        Update: {
+          assunto?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          query_string?: string | null
+          query_url?: string
+          ramo?: string
+          slug?: string
+          titulo?: string
+          tribunal?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      jurisprudencia_prontas_resultados: {
+        Row: {
+          created_at: string
+          data_julgamento: string | null
+          data_publicacao: string | null
+          ementa: string | null
+          ementa_refinada: string | null
+          fetched_at: string
+          id: string
+          observacao: string | null
+          observacao_refinada: string | null
+          ordem: number
+          orgao: string | null
+          pesquisa_id: string
+          raw: Json | null
+          refinado_em: string | null
+          relator: string | null
+          titulo: string
+          url_inteiro_teor: string | null
+          url_pdf: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_julgamento?: string | null
+          data_publicacao?: string | null
+          ementa?: string | null
+          ementa_refinada?: string | null
+          fetched_at?: string
+          id?: string
+          observacao?: string | null
+          observacao_refinada?: string | null
+          ordem?: number
+          orgao?: string | null
+          pesquisa_id: string
+          raw?: Json | null
+          refinado_em?: string | null
+          relator?: string | null
+          titulo: string
+          url_inteiro_teor?: string | null
+          url_pdf?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_julgamento?: string | null
+          data_publicacao?: string | null
+          ementa?: string | null
+          ementa_refinada?: string | null
+          fetched_at?: string
+          id?: string
+          observacao?: string | null
+          observacao_refinada?: string | null
+          ordem?: number
+          orgao?: string | null
+          pesquisa_id?: string
+          raw?: Json | null
+          refinado_em?: string | null
+          relator?: string | null
+          titulo?: string
+          url_inteiro_teor?: string | null
+          url_pdf?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisprudencia_prontas_resultados_pesquisa_id_fkey"
+            columns: ["pesquisa_id"]
+            isOneToOne: false
+            referencedRelation: "jurisprudencia_prontas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jurisprudencia_teses_edicoes: {
+        Row: {
+          created_at: string
+          data_publicacao: string | null
+          edicao: number
+          id: string
+          ramo: string | null
+          titulo: string
+          total_teses: number
+          tribunal: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_publicacao?: string | null
+          edicao: number
+          id?: string
+          ramo?: string | null
+          titulo: string
+          total_teses?: number
+          tribunal?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_publicacao?: string | null
+          edicao?: number
+          id?: string
+          ramo?: string | null
+          titulo?: string
+          total_teses?: number
+          tribunal?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      jurisprudencia_teses_itens: {
+        Row: {
+          created_at: string
+          edicao: number
+          edicao_id: string
+          id: string
+          julgados: string | null
+          numero: number
+          tese: string
+          tribunal: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          edicao: number
+          edicao_id: string
+          id?: string
+          julgados?: string | null
+          numero: number
+          tese: string
+          tribunal?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          edicao?: number
+          edicao_id?: string
+          id?: string
+          julgados?: string | null
+          numero?: number
+          tese?: string
+          tribunal?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jurisprudencia_teses_itens_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "jurisprudencia_teses_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kanban_cards: {
         Row: {
@@ -5854,6 +6185,132 @@ export type Database = {
           tabela_nome?: string
           total?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      sumulas_favoritos: {
+        Row: {
+          created_at: string
+          sumula_numero: number
+          tribunal: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          sumula_numero: number
+          tribunal: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          sumula_numero?: number
+          tribunal?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sumulas_stf: {
+        Row: {
+          created_at: string
+          data_aprovacao: string | null
+          enunciado: string
+          fonte_publicacao: string | null
+          numero: number
+          observacao: string | null
+          orgao_julgador: string | null
+          ramo_direito: string | null
+          situacao: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_aprovacao?: string | null
+          enunciado: string
+          fonte_publicacao?: string | null
+          numero: number
+          observacao?: string | null
+          orgao_julgador?: string | null
+          ramo_direito?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_aprovacao?: string | null
+          enunciado?: string
+          fonte_publicacao?: string | null
+          numero?: number
+          observacao?: string | null
+          orgao_julgador?: string | null
+          ramo_direito?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sumulas_stj: {
+        Row: {
+          created_at: string
+          data_publicacao: string | null
+          enunciado: string
+          numero: number
+          observacao: string | null
+          orgao_julgador: string | null
+          situacao: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_publicacao?: string | null
+          enunciado: string
+          numero: number
+          observacao?: string | null
+          orgao_julgador?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_publicacao?: string | null
+          enunciado?: string
+          numero?: number
+          observacao?: string | null
+          orgao_julgador?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sumulas_vinculantes: {
+        Row: {
+          created_at: string
+          data_publicacao: string | null
+          enunciado: string
+          extras: Json
+          numero: number
+          referencia: string | null
+          situacao: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_publicacao?: string | null
+          enunciado?: string
+          extras?: Json
+          numero: number
+          referencia?: string | null
+          situacao?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_publicacao?: string | null
+          enunciado?: string
+          extras?: Json
+          numero?: number
+          referencia?: string | null
+          situacao?: string
+          updated_at?: string
         }
         Relationships: []
       }
