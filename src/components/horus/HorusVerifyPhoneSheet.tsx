@@ -53,6 +53,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
       setDigits(['', '', '', '', '', '']);
       setResendIn(0);
       setNome('');
+      setTransferred(false);
     }
   }, [open]);
 
