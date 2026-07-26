@@ -275,6 +275,8 @@ const MobileHomeSections = ({ onTabChange, onNewsOpenChange }: Props = {}) => {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
+                data-track="home_tab_switch"
+                data-track-tab={t.id}
                 className="relative flex-1 flex items-center justify-center gap-2 h-10 rounded-full font-display text-[13px] font-bold uppercase tracking-wide transition-colors"
               >
                 {isActive && (
