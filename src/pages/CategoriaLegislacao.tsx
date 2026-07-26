@@ -413,6 +413,11 @@ const CategoriaLegislacao = () => {
     }
   };
 
+  const isArtigoFav = (a: { id: string; numero: string | number }) => {
+    const num = String(a.numero || '').replace(/^Art\.\s*/i, '').trim();
+    return isArtigoFav(a) || favArtigoNumeros.has(num) || favArtigoNumeros.has(String(a.numero));
+  };
+
 
   const UF_ESTADUAL = tipo && /^estadual_([a-z]{2})$/i.exec(tipo)?.[1]?.toUpperCase();
   const config = tipo
@@ -1499,7 +1504,7 @@ const CategoriaLegislacao = () => {
                     isHighlighted={highlightedArtigoId === artigo.id}
                     accentColor={leiAccent}
                     withShine={virtualItem.index < 6}
-                    tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+                    tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
                   />
                 </div>
               );
@@ -1515,7 +1520,7 @@ const CategoriaLegislacao = () => {
             isHighlighted={highlightedArtigoId === artigo.id}
             accentColor={leiAccent}
             withShine={i < 6}
-            tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+            tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
           />
         ))}
         {visibleArtigos.length === 0 && loadedKey === selectedTabelaNome && !loadingArtigos && (
@@ -1572,7 +1577,7 @@ const CategoriaLegislacao = () => {
                   {isCapExpanded && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-3 mt-2 space-y-2">
                       {capGroup.artigos.map((artigo, i) => (
-                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                       ))}
                     </motion.div>
                   )}
@@ -1678,7 +1683,7 @@ const CategoriaLegislacao = () => {
                             {isCapExpanded && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-3 mt-2 space-y-2">
                                 {capGroup.artigos.map((artigo, i) => (
-                                  <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                                  <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                                 ))}
                               </motion.div>
                             )}
@@ -1687,7 +1692,7 @@ const CategoriaLegislacao = () => {
                       })
                     ) : (
                       allArts.map((artigo, i) => (
-                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                       ))
                     )}
                   </motion.div>
@@ -1712,7 +1717,7 @@ const CategoriaLegislacao = () => {
               index={i}
               onClick={() => openArtigoWithRecent(artigo)}
               accentColor={leiAccent}
-              tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+              tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
             />
           ));
         })()}
@@ -1789,8 +1794,8 @@ const CategoriaLegislacao = () => {
     // ---- Overlay panel content builders ----
     const favContent = (
       <div className="space-y-2 pb-8">
-        {artigos.filter(a => favoritos.has(a.id)).length > 0 ? (
-          artigos.filter(a => favoritos.has(a.id)).map((artigo, i) => (
+        {artigos.filter(a => isArtigoFav(a)).length > 0 ? (
+          artigos.filter(a => isArtigoFav(a)).map((artigo, i) => (
             <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => { setOverlayPanel(null); setOpenArtigo(artigo); }} accentColor={leiAccent} tags={{ favorito: true, grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
           ))
         ) : (
@@ -2494,7 +2499,7 @@ const CategoriaLegislacao = () => {
           onClose={() => { setOpenArtigo(null); setOpenFromNovidades(false); setOpenModInfo(null); setSearchQuery(''); }}
           forceShowRedacao={openFromNovidades}
           modificationInfo={openModInfo}
-          isFavorito={openArtigo ? favoritos.has(openArtigo.id) : false}
+          isFavorito={openArtigo ? isArtigoFav(openArtigo) : false}
           onToggleFavorito={() => openArtigo && toggleFavorito(openArtigo.id)}
           showNomenJuris={selectedLeiId === 'cp' || selectedLeiId === 'cpm'}
           tabelaNome={selectedTabelaNome || undefined}
