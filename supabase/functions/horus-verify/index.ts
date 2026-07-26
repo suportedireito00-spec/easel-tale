@@ -24,8 +24,10 @@ Deno.serve(async (req) => {
     if (action === "start") {
       const phone = toE164(String(body.phone || ""));
       if (!phone) return json({ error: "Telefone inválido" }, 400);
-      // DB usa phone_e164 sem "+" (mesmo formato do webhook). Só o Evolution recebe com "+".
+      // DB usa phone_e164 sem "+" em TODAS as tabelas (whatsapp_users, verification_codes,
+      // memoria, stats). Só o Evolution recebe com "+".
       const phoneDb = phone.replace(/^\+/, "");
+      console.log("[horus-verify] start", { userId, phoneDb });
 
       // Rate-limit: bloqueia se este número já foi transferido 3x nas últimas 24h
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
