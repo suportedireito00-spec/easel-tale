@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Loader2, Clock, Activity, Flame, Star, Calendar, Crown, Phone, Mail,
-  GraduationCap, LayoutGrid,
+  GraduationCap, LayoutGrid, MessageCircle,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +37,8 @@ interface Dossie {
   eventos: { label: string; count: number }[];
   contadores: { favoritos: number; grifos: number; anotacoes: number };
   assinatura: any;
+  horus: any;
+  horusStats: any;
 }
 
 const GAP_MAX = 10 * 60 * 1000; // 10min entre pings = mesma sessão de tela
@@ -63,7 +65,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
       hoje.setHours(0, 0, 0, 0);
       const desdeHoje = hoje.toISOString();
 
-      const [perfilR, logR, sessR, featR, evR, favR, grifR, anotR, assR] = await Promise.all([
+      const [perfilR, logR, sessR, featR, evR, favR, grifR, anotR, assR, horusR, horusStatsR] = await Promise.all([
         supabase.from('profiles' as any).select('*').eq('id', userId).maybeSingle(),
         supabase.from('user_activity_log' as any)
           .select('current_route, last_seen_at')
@@ -83,6 +85,14 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
         supabase.from('play_subscriptions' as any)
           .select('product_id, base_plan_id, status, expires_at, auto_renewing')
           .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('horus_whatsapp_users' as any)
+          .select('phone_e164, verified_at, msg_count, last_seen_at, first_seen_at, blocked, onboarding_state, nome_preferido, linked_at')
+          .or(`user_id.eq.${userId},linked_user_id.eq.${userId}`)
+          .order('verified_at', { ascending: false, nullsFirst: false })
+          .limit(1).maybeSingle(),
+        supabase.from('horus_user_stats' as any)
+          .select('telefone, ultima_atividade_em, dias_streak_estudo')
+          .eq('user_id', userId).maybeSingle(),
       ]);
       if (cancel) return;
 
@@ -136,6 +146,8 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
           .map(([k, count]) => ({ label: k, count })).slice(0, 12),
         contadores: { favoritos: favR.count || 0, grifos: grifR.count || 0, anotacoes: anotR.count || 0 },
         assinatura: assR.data,
+        horus: (horusR as any)?.data || null,
+        horusStats: (horusStatsR as any)?.data || null,
       });
       setLoading(false);
     })();
@@ -148,6 +160,12 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
   const maisEngajada = d ? [...d.funcoes].sort((a, b) => b.segundos - a.segundos)[0] : undefined;
   const perfilTipos: string[] = d?.perfil?.perfil_tipos || [];
   const maxHits = Math.max(1, ...(d?.funcoes || []).map((f) => f.hits));
+  const telefone =
+    d?.horus?.phone_e164 ||
+    d?.perfil?.whatsapp_number ||
+    d?.perfil?.telefone ||
+    d?.horusStats?.telefone ||
+    null;
 
   const Stat = ({ icon: Icon, label, value }: any) => (
     <div className="rounded-2xl border border-border/60 bg-secondary/30 px-3 py-2.5">
@@ -245,11 +263,9 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
                 <div className="flex items-center gap-1.5 font-body text-[11px] text-muted-foreground">
                   <Calendar className="w-3 h-3" /> Desde {dia(d.perfil?.created_at)}
                 </div>
-                {d.perfil?.whatsapp_number || d.perfil?.telefone ? (
-                  <div className="flex items-center gap-1.5 font-body text-[11px] text-muted-foreground truncate">
-                    <Phone className="w-3 h-3" /> {d.perfil.whatsapp_number || d.perfil.telefone}
-                  </div>
-                ) : null}
+                <div className="flex items-center gap-1.5 font-body text-[11px] text-muted-foreground truncate">
+                  <Phone className="w-3 h-3" /> {telefone || 'Sem número'}
+                </div>
                 <div className="flex items-center gap-1.5 font-body text-[11px] text-muted-foreground truncate">
                   <Mail className="w-3 h-3" /> {email || '—'}
                 </div>
@@ -262,6 +278,55 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
                 </div>
               )}
             </div>
+
+            <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3 space-y-2">
+              <div className="flex items-center gap-2 font-body text-[11px] text-muted-foreground">
+                <MessageCircle className="w-3.5 h-3.5 text-primary" /> Horus (WhatsApp)
+              </div>
+              {d.horus ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-border/60 bg-background/60 px-2 py-[2px] font-body text-[10px] text-foreground">
+                      {d.horus.phone_e164 || telefone || '—'}
+                    </span>
+                    <span className={`rounded-full px-2 py-[2px] font-body text-[10px] ${d.horus.verified_at ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive'}`}>
+                      {d.horus.verified_at ? `Verificado ${dia(d.horus.verified_at)}` : 'Não verificado'}
+                    </span>
+                    {d.horus.blocked && (
+                      <span className="rounded-full bg-destructive/15 px-2 py-[2px] font-body text-[10px] text-destructive">Bloqueado</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <div className="font-body text-[10px] text-muted-foreground">Mensagens trocadas</div>
+                      <div className="font-body text-sm font-semibold text-foreground">{d.horus.msg_count ?? 0}</div>
+                    </div>
+                    <div>
+                      <div className="font-body text-[10px] text-muted-foreground">Última interação</div>
+                      <div className="font-body text-sm font-semibold text-foreground">
+                        {d.horus.last_seen_at ? `${dia(d.horus.last_seen_at)} ${hora(d.horus.last_seen_at)}` : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-body text-[10px] text-muted-foreground">Primeiro contato</div>
+                      <div className="font-body text-sm font-semibold text-foreground">{dia(d.horus.first_seen_at)}</div>
+                    </div>
+                    <div>
+                      <div className="font-body text-[10px] text-muted-foreground">Vinculado em</div>
+                      <div className="font-body text-sm font-semibold text-foreground">{dia(d.horus.linked_at)}</div>
+                    </div>
+                  </div>
+                  <div className="font-body text-[10px] text-muted-foreground">
+                    {(d.horus.msg_count ?? 0) > 0 ? 'Interage com o Horus' : 'Ainda não conversou com o Horus'}
+                  </div>
+                </>
+              ) : (
+                <p className="font-body text-[11px] text-muted-foreground">
+                  {telefone ? `Número ${telefone} sem vínculo verificado no Horus.` : 'Não vinculou número ao Horus.'}
+                </p>
+              )}
+            </div>
+
 
             <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3 space-y-2.5">
               <div className="flex items-center gap-2 font-body text-[11px] text-muted-foreground">
