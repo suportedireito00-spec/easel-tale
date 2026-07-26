@@ -401,7 +401,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
               <div className="px-3 mt-3">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-2">Ferramentas</p>
                 <button
-                  onClick={() => setWebSearch(w => !w)}
+                  onClick={() => toggleWebSearch()}
                   aria-pressed={webSearch}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-body transition-colors ${
                     webSearch
@@ -627,7 +627,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
             )}
             <div className="flex items-end gap-2 relative">
               <button
-                onClick={() => setAttachOpen(v => !v)}
+                onClick={() => abrirAnexos()}
                 aria-label="Anexar"
                 aria-expanded={attachOpen}
                 className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-transform ${attachOpen ? 'bg-accent text-accent-foreground rotate-45' : isDesktop ? 'bg-background/60 text-foreground hover:bg-background' : 'bg-secondary text-foreground'}`}
@@ -673,7 +673,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
             {/* Web search toggle abaixo do campo de texto (mobile apenas — no desktop, fica na sidebar) */}
             {!isDesktop && <div className="mt-2 flex items-center justify-start">
               <button
-                onClick={() => setWebSearch(w => !w)}
+                onClick={() => toggleWebSearch()}
                 aria-pressed={webSearch}
                 className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-body transition-colors ${
                   webSearch
@@ -797,7 +797,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
                   <h3 className="font-display text-lg font-bold text-foreground mb-1">Poderes</h3>
                   <p className="text-xs font-body text-muted-foreground mb-4">Ative superpoderes para respostas ainda melhores.</p>
                   <button
-                    onClick={() => { setWebSearch(w => !w); }}
+                    onClick={() => { toggleWebSearch(); }}
                     className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-colors ${webSearch ? 'bg-accent/20 border-accent' : 'bg-secondary border-border'}`}
                   >
                     <Globe className={`w-6 h-6 ${webSearch ? 'text-accent' : 'text-foreground'}`} />
