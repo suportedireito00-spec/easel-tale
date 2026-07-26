@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Loader2, Clock, Activity, Flame, Star, Calendar, Crown, Phone, Mail,
-  GraduationCap, LayoutGrid, MessageCircle, MapPin, Smartphone,
+  GraduationCap, LayoutGrid, MessageCircle, MapPin,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
