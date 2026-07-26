@@ -141,7 +141,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
     setSending(false);
     haptic.medium();
     toast.success(`Prazer, ${finalName.split(' ')[0]}! 👋`);
-    onVerified();
+    onVerified({ transferred });
     onClose();
   }
 
