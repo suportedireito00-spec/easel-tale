@@ -907,24 +907,20 @@ Regras:
   }
 }
 
-function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumarioExtraido: any[] = []): SumarioCanonico {
+function validarERepararSumario(
+  sumario: SumarioCanonico,
+  pages: string[],
+  sumarioExtraido: any[] = [],
+  pageClasses: PageClassificacao[] = [],
+): SumarioCanonico {
   const totalPaginas = pages.length;
   let capitulos = (sumario.capitulos || [])
     .map((c, i) => ({ ...c, numero: c.numero ?? i + 1, pagina_inicio: clampNum(Number(c.pagina_inicio) || 1, 1, totalPaginas) }))
-    .filter((c) => String(c.titulo || '').trim());
+    .filter((c) => tituloCapituloAceitavel(c.titulo, c.pagina_inicio, pageClasses));
 
   // Fallback: se o AI colapsou tudo em poucos capítulos mas o OCR extraiu um sumário rico,
   // reconstrói os capítulos a partir do sumário extraído (títulos + páginas reais).
-  const preliminaresRe = /^(sum[áa]rio|[íi]ndice|apresenta[cç][ãa]o|pref[áa]cio|dedicat[óo]ria|agradecimentos|ficha catalogr[áa]fica|col[oó]f[ãa]o|bibliografia|nota do (autor|editor)|cap[ií]tulo\s*$|em[eé]diato editores)/i;
-  const tocLeaderRe = /\.{2,}\s*\d{1,4}\s*$/;               // "Título .......... 39"
-  const pageSuffixRe = /\s\d{1,4}\s*$/;                       // "11. ACORDO DE ACIONISTAS 39"
-  const candidatosExtraidos = (sumarioExtraido || [])
-    .filter((s: any) => s && typeof s.page === 'number' && typeof s.titulo === 'string')
-    .map((s: any) => ({ ...s, titulo: String(s.titulo).replace(/\*+/g, '').trim() }))
-    .filter((s: any) => !preliminaresRe.test(s.titulo))
-    .filter((s: any) => !tocLeaderRe.test(s.titulo))
-    .filter((s: any) => !(pageSuffixRe.test(s.titulo) && s.titulo.length < 120))
-    .filter((s: any) => s.titulo.length >= 3);
+  const candidatosExtraidos = filtrarCandidatosSumario(sumarioExtraido, pageClasses);
   if (candidatosExtraidos.length >= 4 && capitulos.length < Math.max(3, Math.floor(candidatosExtraidos.length * 0.4))) {
     console.warn('[refino] AI devolveu poucos capítulos vs sumário extraído — usando fallback', {
       ai: capitulos.length, extraido: candidatosExtraidos.length,
@@ -941,6 +937,9 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
   const tocPages = new Set<number>();
   pages.forEach((p, i) => {
     if (isPaginaIndiceOriginal(p)) tocPages.add(i + 1);
+  });
+  pageClasses.forEach((p) => {
+    if (p.kind !== "conteudo") tocPages.add(p.page);
   });
 
   const starts = capitulos.map((c) => c.pagina_inicio);
