@@ -9,6 +9,7 @@ import feat2 from '@/assets/assistente-feature-2.jpg';
 import feat3 from '@/assets/assistente-feature-3.jpg';
 import AssistenteOverlay from '@/components/vademecum/AssistenteOverlay';
 import { PageHeader } from '@/components/vademecum/PageHeader';
+import { track } from '@/lib/analyticsEvents';
 
 
 const STORAGE_KEY = 'assistente_phone_confirmado_v1';
