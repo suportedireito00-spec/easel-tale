@@ -475,7 +475,92 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
           </div>
         )}
       </SheetContent>
+
+      <Sheet open={!!confirmar} onOpenChange={(v) => !v && !executando && setConfirmar(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl p-0 bg-background border-border">
+          <div className="p-5 space-y-4">
+            {confirmar === 'menu' ? (
+              <>
+                <div>
+                  <div className="font-display text-lg font-bold text-foreground">Ações do usuário</div>
+                  <p className="font-body text-[13px] text-muted-foreground mt-1 truncate">{email || nome}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar('ban')}
+                  className="w-full flex items-start gap-3 rounded-2xl border border-border/60 bg-secondary/30 px-4 py-4 text-left hover:bg-secondary/60 transition-colors"
+                >
+                  <Ban className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-body text-[15px] font-semibold text-foreground">Banir usuário</div>
+                    <div className="font-body text-[12.5px] text-muted-foreground mt-0.5">
+                      Bloqueia o acesso e mantém o e-mail reservado — não poderá criar outra conta com ele.
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar('delete')}
+                  className="w-full flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-4 text-left hover:bg-destructive/20 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-body text-[15px] font-semibold text-destructive">Excluir conta</div>
+                    <div className="font-body text-[12.5px] text-muted-foreground mt-0.5">
+                      Apaga a conta e todos os dados. O e-mail fica livre para um novo cadastro.
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmar(null)}
+                  className="w-full rounded-2xl border border-border/60 px-4 py-3 font-body text-[14px] text-muted-foreground"
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-6 h-6 text-destructive shrink-0" />
+                  <div>
+                    <div className="font-display text-lg font-bold text-foreground">
+                      {confirmar === 'ban' ? 'Banir este usuário?' : 'Excluir a conta?'}
+                    </div>
+                    <p className="font-body text-[13px] text-muted-foreground mt-1">
+                      {confirmar === 'ban'
+                        ? 'Ele perde o acesso imediatamente e o e-mail continua bloqueado para novos cadastros.'
+                        : 'Todos os dados serão apagados definitivamente. Esta ação não pode ser desfeita.'}
+                    </p>
+                    <p className="font-body text-[12.5px] text-foreground mt-2 truncate">{email || nome}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    disabled={executando}
+                    onClick={() => setConfirmar('menu')}
+                    className="rounded-2xl border border-border/60 px-4 py-3 font-body text-[14px] text-muted-foreground disabled:opacity-50"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={executando}
+                    onClick={() => executarAcao(confirmar as 'ban' | 'delete')}
+                    className="rounded-2xl bg-destructive px-4 py-3 font-body text-[14px] font-semibold text-destructive-foreground inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {executando && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {confirmar === 'ban' ? 'Banir' : 'Excluir'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Sheet>
   );
 }
+
 
