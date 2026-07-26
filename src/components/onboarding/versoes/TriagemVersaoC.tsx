@@ -380,7 +380,7 @@ function CardContent({
   playSfx,
   bg,
 }: {
-  step: Exclude<Step, 'abertura'>;
+  step: Exclude<Step, 'abertura' | 'features'>;
   data: TriagemResult;
   setData: React.Dispatch<React.SetStateAction<TriagemResult>>;
   advance: (patch: Partial<TriagemResult>) => void;
