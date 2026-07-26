@@ -263,6 +263,7 @@ const AssistenteHorus = () => {
   };
 
   async function savePref(key: keyof NotifPrefs, value: boolean) {
+    track('horus_notification_pref_changed', { key, value });
     if (!linked) {
       toast.error('Verifique seu WhatsApp primeiro');
       setVerifyOpen(true);
