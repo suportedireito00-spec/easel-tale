@@ -1,43 +1,36 @@
-## Objetivo
+## O que já verifiquei
 
-Na Biblioteca, o usuário gratuito pode ler **1 livro por mês**. Escolhido o livro (ex.: *Do Espírito das Leis*), ele libera **todos os modos daquele livro**: leitura nativa, PDF, versão folheada, baixar para offline e versão desktop. Ao tentar abrir **outro** livro no mesmo mês, sobe o card de assinatura personalizado da Biblioteca, com botão "Ver mais benefícios" que abre a lista completa de vantagens.
+- A página `/admin-assinantes` chama a edge function `play-reporting`, que devolve dois blocos: `reporting` (Google Play Developer Reporting API) e `local` (nosso banco).
+- O bloco **local funciona**: no banco existem 10 linhas em `play_subscriptions` (9 `ACTIVE`, 1 `CANCELED`) — bate com o "Total registradas 10" da sua tela.
+- O bloco **reporting está zerado** em todos os cards ("Ativos hoje", "Novos 7d", "Cancelados 7d", "Renovações 30d") e o gráfico de evolução nem aparece (só renderiza se houver linhas).
+- Os logs recentes da função não mostram erro: a chamada ao Google é feita dentro de um `.catch()` que engole a falha e devolve `{ error: ... }`, e a tela **só exibe aviso quando o erro é 403**. Qualquer outro erro (API não habilitada, nome de métrica inválido, package name errado, 400/404) fica invisível e vira zero.
 
-## Regra de limite
+Ou seja: a causa exata ainda não está confirmada — o erro real do Google está sendo escondido. O primeiro passo do plano é justamente revelá-lo.
 
-Hoje `feature_limits.biblioteca_ler` está com `limit_value = 1`, `period = monthly`, `scope_key = 'colecao'` — ou seja, 1 livro **por coleção**. Ajustar para escopo por **livro**:
+## Plano
 
-- `scope_key = 'livro'` (limite global de 1 leitura/mês, contando livros distintos)
-- No `LivroDetailSheet`, passar `scope: String(livro.id)` em vez de `livro.colecaoId`
+**1. Expor o erro real (diagnóstico)**
+- Em `play-reporting`, logar `status` + corpo da resposta do Google para cada consulta (`subscriptionMetricSet`, `installsMetricSet`) e devolver esse detalhe no payload.
+- Na página, trocar o aviso "só 403" por um painel de diagnóstico que mostra qualquer erro do Google (status, mensagem, package name e e-mail da service account), com o texto de ajuda específico para 403 (permissões) e para 403/404 de API desabilitada.
 
-Com isso o hook `useFeatureLimit` já faz o bypass automático: se o livro atual já foi registrado no mês, ele continua abrindo livremente em qualquer modo, quantas vezes quiser; qualquer livro diferente é bloqueado.
+**2. Corrigir a consulta ao Reporting API**
+Com o erro em mãos, ajustar o que estiver quebrado, entre as causas prováveis:
+- Nomes de métricas/dimensões inválidos no `subscriptionMetricSet` (retorna 400 e some tudo) — validar contra a documentação atual da Play Developer Reporting API e corrigir.
+- `ANDROID_PACKAGE_NAME` ausente ou diferente do pacote publicado.
+- Play Developer Reporting API não habilitada no projeto Google Cloud da service account.
+- Permissões faltando no Play Console para a service account.
+- Janela de dados: o Reporting API tem atraso de alguns dias e não devolve "hoje"; ajustar o cálculo de "Ativos hoje" para usar o último dia disponível e mostrar a data de referência.
 
-## Ajustes no `LivroDetailSheet.tsx`
+**3. Fallback confiável quando o Reporting API não tiver dados**
+- O Reporting API só cobre apps com volume/histórico. Adicionar um fallback que calcula "ativos / novos / cancelados / renovações" a partir de `play_subscriptions` (dados que já recebemos por webhook RTDN + validate-purchase), marcando visualmente a origem ("Play Reporting" vs "nosso banco").
+- Com isso os cards deixam de ficar zerados mesmo enquanto o Google não devolve nada.
 
-- Aplicar o gate também em **baixar para offline** (`modo === 'download'`) e **versão desktop** (`modo === 'desktop'`), que hoje passam direto. Se o livro é o "livro do mês" (ou premium/admin), libera; senão abre o card.
-- Registrar o uso **antes** de abrir o leitor (hoje o `register` roda depois), para não haver janela em que dois livros contem como um.
-- Botão "Ler agora" no desktop: passar o `refKey` do livro no `register` (hoje chama `register()` sem argumento).
-- No card, usar `feature="biblioteca"` com mensagem de uso: "Você já leu seu livro gratuito deste mês".
+**4. Ajustar a leitura de "assinaturas de teste"**
+- Hoje toda assinatura com duração < 1h é classificada como teste — por isso "Premium agora 0" e "Testes 9". Confirmar essa heurística contra as linhas reais e, se necessário, passar a usar o flag de compra de teste/licença em vez da duração, para não zerar a receita indevidamente.
 
-## Card premium flutuante com benefícios
-
-Em `src/components/PremiumGate.tsx` (já sobe de baixo para cima e já é personalizado por função):
-
-- Texto da chave `biblioteca` ajustado para a regra nova (1 livro grátis por mês; premium libera o acervo inteiro).
-- Adicionar botão **"Ver mais benefícios"** abaixo do CTA. Ao tocar, sobe uma segunda camada (também deslizando de baixo para cima) com a **lista padrão de benefícios** — a mesma para qualquer função que abrir o card:
-  - Biblioteca completa (leitura nativa, PDF, folheada, offline e desktop)
-  - Vade Mecum sem limites: grifos, anotações, narração, explicações e exemplos
-  - Funções de IA no artigo: jurisprudência, videoaulas, termos, perguntar e grafo
-  - Praticar: questões e flashcards ilimitados
-  - Favoritos e lembretes ilimitados
-  - Radar Legislativo e Blogger Jurídico completos
-  - Trilha Aprender ilimitada
-  - Horus 24h no WhatsApp
-  - Modo offline e leitura no desktop
-- Nessa camada só existem os botões "Começar 7 dias grátis", "Ver outros planos" e voltar/fechar — nenhuma função é liberada por ali.
-- A lista fica em um único arquivo de constantes reaproveitável, para que todos os cards flutuantes do app mostrem o mesmo conjunto.
+**5. Validar**
+- Recarregar `/admin-assinantes` e conferir: ou os números do Play aparecem, ou o painel mostra exatamente qual configuração falta (com link e passo a passo no Play Console / Google Cloud).
 
 ## Detalhes técnicos
 
-- Escopo/limite continuam editáveis pelo painel `AdminFuncoesAssinantes` sem mexer em código.
-- Premium e admin seguem sem qualquer limite.
-- Nenhuma mudança de esquema: `feature_usage` já guarda `scope_value` e `ref_key`.
+Arquivos envolvidos: `supabase/functions/play-reporting/index.ts` (logging, correção da query, fallback local) e `src/pages/AdminAssinantes.tsx` (painel de diagnóstico, badge de origem dos dados, data de referência). Nenhuma mudança de schema é necessária.

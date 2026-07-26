@@ -38,12 +38,33 @@ type LocalRow = {
   is_test: boolean;
 };
 
+type Metrics = {
+  ativosHoje: number;
+  novos7: number;
+  cancelados7: number;
+  renovacoes30: number;
+  timeline: { date: string; label: string; ativos: number; novos: number; cancelados: number; renovacoes: number }[];
+};
+
+type SyncInfo = {
+  checked?: number;
+  updated?: number;
+  errors?: { status: number; message: string }[];
+  lastSyncAt?: string;
+  error?: string;
+};
+
 type Payload = {
-  reporting: any;
-  local: { rows: LocalRow[]; stats: { total: number; active: number; test: number; byPlan: Record<string, number> } };
+  sync: SyncInfo | null;
+  local: {
+    rows: LocalRow[];
+    stats: { total: number; active: number; test: number; byPlan: Record<string, number> };
+    metrics: Metrics;
+  };
   packageName: string;
   serviceAccountEmail: string | null;
 };
+
 
 // Preços vigentes (BRL) — usados para estimar MRR/ARR/receita acumulada
 // Ajuste aqui se mudar o preço no Play Console.
@@ -77,58 +98,8 @@ const fmtDate = (iso: string | null) => {
   catch { return '—'; }
 };
 
-function sumMetric(reporting: any, metricName: string): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  let total = 0;
-  rows.forEach((r) => {
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === metricName) total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
+const EMPTY_METRICS: Metrics = { ativosHoje: 0, novos7: 0, cancelados7: 0, renovacoes30: 0, timeline: [] };
 
-// Agrega métricas do Play Reporting por dia (soma entre basePlanId)
-function buildTimeline(reporting: any) {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  const byDate = new Map<string, { date: string; ativos: number; novos: number; cancelados: number; renovacoes: number }>();
-  rows.forEach((r) => {
-    if (!r.startTime) return;
-    const iso = `${r.startTime.year}-${String(r.startTime.month).padStart(2, '0')}-${String(r.startTime.day).padStart(2, '0')}`;
-    const cur = byDate.get(iso) ?? { date: iso, ativos: 0, novos: 0, cancelados: 0, renovacoes: 0 };
-    (r.metrics ?? []).forEach((m: any) => {
-      const v = Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-      if (m.metric === 'activeSubscribersCount') cur.ativos += v;
-      if (m.metric === 'newSubscribersCount') cur.novos += v;
-      if (m.metric === 'canceledSubscribersCount') cur.cancelados += v;
-      if (m.metric === 'subscriptionRenewalsCount') cur.renovacoes += v;
-    });
-    byDate.set(iso, cur);
-  });
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({
-    ...d,
-    label: d.date.slice(5).replace('-', '/'),
-  }));
-}
-
-function activeSubscribersToday(reporting: any): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  // pega o último dia
-  let lastDate = '';
-  rows.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d > lastDate) lastDate = d;
-  });
-  let total = 0;
-  rows.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d !== lastDate) return;
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === 'activeSubscribersCount') total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
 
 const AdminAssinantes = () => {
   const navigate = useNavigate();
@@ -166,16 +137,18 @@ const AdminAssinantes = () => {
     });
   }, [data, q, statusFilter]);
 
-  const reportingError = data?.reporting?.error || data?.reporting?.subs?.body?.error;
-  const reportingIs403 =
-    data?.reporting?.subs?.status === 403 ||
-    (typeof reportingError === 'object' && (reportingError as any)?.code === 403);
+  const sync = data?.sync ?? null;
+  const syncErrors = sync?.errors ?? [];
+  const syncFatal = sync?.error ?? null;
+  const sync403 = syncErrors.some((e) => e.status === 401 || e.status === 403);
 
-  const activeToday = data ? activeSubscribersToday(data.reporting) : 0;
-  const newLast7 = data ? sumMetricLastN(data.reporting, 'newSubscribersCount', 7) : 0;
-  const canceledLast7 = data ? sumMetricLastN(data.reporting, 'canceledSubscribersCount', 7) : 0;
-  const renewals30 = data ? sumMetric(data.reporting, 'subscriptionRenewalsCount') : 0;
-  const timeline = useMemo(() => (data ? buildTimeline(data.reporting) : []), [data]);
+  const metrics = data?.local.metrics ?? EMPTY_METRICS;
+  const activeToday = metrics.ativosHoje;
+  const newLast7 = metrics.novos7;
+  const canceledLast7 = metrics.cancelados7;
+  const renewals30 = metrics.renovacoes30;
+  const timeline = metrics.timeline;
+
 
   // Receita estimada com base nos assinantes ativos NÃO-teste e preços vigentes
   const revenue = useMemo(() => {
@@ -248,24 +221,35 @@ const AdminAssinantes = () => {
           </div>
         )}
 
-        {reportingIs403 && data?.serviceAccountEmail && (
+        {(syncFatal || syncErrors.length > 0) && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm space-y-2">
             <div className="flex items-center gap-2 font-medium text-amber-600">
-              <AlertTriangle className="w-4 h-4" /> Falta permissão no Play Console
+              <AlertTriangle className="w-4 h-4" />
+              {sync403 ? 'Falta permissão no Play Console' : 'Erro ao consultar o Google Play'}
             </div>
-            <p className="text-muted-foreground">
-              A service account existe, mas não tem acesso aos dados financeiros. Vá em <strong>Play Console → Usuários e permissões</strong>,
-              localize a conta abaixo e habilite <em>"Ver app information e estatísticas"</em> e <em>"Ver informações financeiras, pedidos e cancelamentos"</em>.
-            </p>
-            <div className="flex items-center gap-2 rounded-md bg-background/70 px-2 py-1.5 text-xs font-mono break-all">
-              <span className="flex-1">{data.serviceAccountEmail}</span>
-              <button
-                onClick={() => { navigator.clipboard.writeText(data.serviceAccountEmail!); toast.success('Copiado'); }}
-                className="p-1 hover:bg-muted rounded"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {syncFatal && <p className="text-xs font-mono break-all text-muted-foreground">{syncFatal}</p>}
+            {syncErrors.map((e, i) => (
+              <p key={i} className="text-xs font-mono break-all text-muted-foreground">
+                HTTP {e.status} — {e.message}
+              </p>
+            ))}
+            {sync403 && (
+              <p className="text-muted-foreground">
+                A service account existe, mas não tem acesso. Vá em <strong>Play Console → Usuários e permissões</strong>,
+                localize a conta abaixo e habilite <em>"Ver informações financeiras, pedidos e cancelamentos"</em> e o acesso ao app <code>{data?.packageName}</code>.
+              </p>
+            )}
+            {data?.serviceAccountEmail && (
+              <div className="flex items-center gap-2 rounded-md bg-background/70 px-2 py-1.5 text-xs font-mono break-all">
+                <span className="flex-1">{data.serviceAccountEmail}</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(data.serviceAccountEmail!); toast.success('Copiado'); }}
+                  className="p-1 hover:bg-muted rounded"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <a
               href="https://play.google.com/console/u/0/developers/-/users-and-permissions"
               target="_blank" rel="noreferrer"
@@ -275,6 +259,15 @@ const AdminAssinantes = () => {
             </a>
           </div>
         )}
+
+        {sync && !syncFatal && (
+          <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            Sincronizado com o Google Play: <strong className="text-foreground">{sync.checked ?? 0}</strong> compra(s) verificada(s),{' '}
+            <strong className="text-foreground">{sync.updated ?? 0}</strong> atualizada(s)
+            {sync.lastSyncAt && <> · {new Date(sync.lastSyncAt).toLocaleString('pt-BR')}</>}
+          </div>
+        )}
+
 
         {/* HERO — Receita estimada */}
         <section className="rounded-2xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent p-4 md:p-5">
@@ -349,8 +342,9 @@ const AdminAssinantes = () => {
         {/* Métricas agregadas */}
         <section className="space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-            Últimos 30 dias (Play Reporting)
+            Últimos 30 dias (sincronizado com o Google Play)
           </h2>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <StatCard icon={Users} label="Ativos hoje" value={loading ? '…' : activeToday} tint="text-emerald-500" />
             <StatCard icon={TrendingUp} label="Novos 7d" value={loading ? '…' : newLast7} tint="text-blue-500" />
@@ -489,29 +483,8 @@ const AdminAssinantes = () => {
   );
 };
 
-function sumMetricLastN(reporting: any, metricName: string, n: number): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  const sorted = [...rows].sort((a, b) => {
-    const da = a.startTime ? `${a.startTime.year}-${String(a.startTime.month).padStart(2, '0')}-${String(a.startTime.day).padStart(2, '0')}` : '';
-    const db = b.startTime ? `${b.startTime.year}-${String(b.startTime.month).padStart(2, '0')}-${String(b.startTime.day).padStart(2, '0')}` : '';
-    return db.localeCompare(da);
-  });
-  const dates = new Set<string>();
-  sorted.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d) dates.add(d);
-  });
-  const lastN = [...dates].slice(0, n);
-  let total = 0;
-  sorted.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (!lastN.includes(d)) return;
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === metricName) total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
+
+
 
 function StatCard({ icon: Icon, label, value, tint }: { icon: any; label: string; value: number | string; tint: string }) {
   return (
