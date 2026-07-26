@@ -24,6 +24,7 @@ import { scheduleTrialReminder, type TrialPlan } from "@/lib/trialReminders";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { isAdminEmail } from "@/lib/adminEmails";
 import { maybeRequestAfterPurchase } from "@/lib/inAppReview";
+import { track } from "@/lib/analyticsEvents";
 
 const benefits = [
   { icon: BookOpen, text: "Acesso a todas as legislações" },
