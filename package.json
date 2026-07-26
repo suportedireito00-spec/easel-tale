@@ -63,7 +63,6 @@
     "@capacitor/toast": "^8.0.1",
     "@capawesome/capacitor-app-update": "^8.0.3",
     "@capawesome/capacitor-maps-launcher": "^0.1.1",
-    "@capgo/capacitor-social-login": "^8.3.37",
     "@capgo/native-purchases": "^8.6.4",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@dnd-kit/core": "^6.3.1",
