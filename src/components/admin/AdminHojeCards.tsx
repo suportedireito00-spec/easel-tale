@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Radio, UserPlus, Sparkles, Loader2, Mail, BarChart3 } from 'lucide-react';
+import { Radio, UserPlus, Sparkles, Loader2, Mail, BarChart3, ChevronRight } from 'lucide-react';
 import { SiGoogle, SiApple } from 'react-icons/si';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -89,6 +89,37 @@ export function AdminHojeCards() {
   const [totaisOpen, setTotaisOpen] = useState(false);
   const [totais, setTotais] = useState<any>(null);
   const [totaisLoading, setTotaisLoading] = useState(false);
+  const [provOpen, setProvOpen] = useState<string | null>(null);
+  const [provRows, setProvRows] = useState<Row[]>([]);
+  const [provLoading, setProvLoading] = useState(false);
+
+  const abrirProvider = useCallback(
+    async (p: string) => {
+      setProvOpen(p);
+      setProvLoading(true);
+      setProvRows([]);
+      try {
+        const { data } = await supabase.rpc('admin_lista_provider' as any, {
+          _tipo: open || 'cadastros',
+          _provider: p,
+        });
+        setProvRows(
+          ((data as any[]) || []).map((r) => ({
+            key: r.user_id,
+            userId: r.user_id,
+            title: r.nome || 'Usuário',
+            email: r.email,
+            subtitle: r.email,
+            provider: r.provider,
+            meta: r.criado_em ? new Date(r.criado_em).toLocaleDateString('pt-BR') : '',
+          })),
+        );
+      } finally {
+        setProvLoading(false);
+      }
+    },
+    [open],
+  );
 
   const abrirTotais = useCallback(async () => {
     if (!open) return;
@@ -333,17 +364,23 @@ export function AdminHojeCards() {
                       const tot = Math.max(1, Number(totais.total || 1));
                       const pct = Math.round((v / tot) * 100);
                       return (
-                        <div key={p}>
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => abrirProvider(p)}
+                          className="w-full text-left rounded-xl px-1 py-1 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                        >
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <ProviderTag provider={p} />
-                            <span className="font-body text-[12.5px] text-foreground">
+                            <span className="font-body text-[12.5px] text-foreground inline-flex items-center gap-1">
                               {v} <span className="text-muted-foreground">({pct}%)</span>
+                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
                             <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -379,6 +416,47 @@ export function AdminHojeCards() {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={!!provOpen} onOpenChange={(v) => !v && setProvOpen(null)}>
+        <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
+          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
+            <SheetTitle className="font-display text-base font-bold text-foreground">
+              Contas · {provOpen === 'google' ? 'Google' : provOpen === 'apple' ? 'Apple' : 'E-mail'}
+            </SheetTitle>
+            <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
+              {provLoading ? 'Carregando…' : `${provRows.length} usuário${provRows.length === 1 ? '' : 's'}`}
+            </p>
+          </SheetHeader>
+          <div className="p-3">
+            {provLoading ? (
+              <div className="flex justify-center py-10 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+            ) : provRows.length === 0 ? (
+              <p className="font-body text-sm text-muted-foreground text-center py-10">Nenhum usuário.</p>
+            ) : (
+              <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
+                {provRows.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setDossie(r)}
+                    className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                      {r.subtitle && (
+                        <div className="font-body text-[11px] text-muted-foreground truncate">{r.subtitle}</div>
+                      )}
+                    </div>
+                    <ProviderTag provider={r.provider} />
+                    <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
 
       <UserDossieSheet
