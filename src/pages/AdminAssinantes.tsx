@@ -221,24 +221,35 @@ const AdminAssinantes = () => {
           </div>
         )}
 
-        {reportingIs403 && data?.serviceAccountEmail && (
+        {(syncFatal || syncErrors.length > 0) && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm space-y-2">
             <div className="flex items-center gap-2 font-medium text-amber-600">
-              <AlertTriangle className="w-4 h-4" /> Falta permissão no Play Console
+              <AlertTriangle className="w-4 h-4" />
+              {sync403 ? 'Falta permissão no Play Console' : 'Erro ao consultar o Google Play'}
             </div>
-            <p className="text-muted-foreground">
-              A service account existe, mas não tem acesso aos dados financeiros. Vá em <strong>Play Console → Usuários e permissões</strong>,
-              localize a conta abaixo e habilite <em>"Ver app information e estatísticas"</em> e <em>"Ver informações financeiras, pedidos e cancelamentos"</em>.
-            </p>
-            <div className="flex items-center gap-2 rounded-md bg-background/70 px-2 py-1.5 text-xs font-mono break-all">
-              <span className="flex-1">{data.serviceAccountEmail}</span>
-              <button
-                onClick={() => { navigator.clipboard.writeText(data.serviceAccountEmail!); toast.success('Copiado'); }}
-                className="p-1 hover:bg-muted rounded"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {syncFatal && <p className="text-xs font-mono break-all text-muted-foreground">{syncFatal}</p>}
+            {syncErrors.map((e, i) => (
+              <p key={i} className="text-xs font-mono break-all text-muted-foreground">
+                HTTP {e.status} — {e.message}
+              </p>
+            ))}
+            {sync403 && (
+              <p className="text-muted-foreground">
+                A service account existe, mas não tem acesso. Vá em <strong>Play Console → Usuários e permissões</strong>,
+                localize a conta abaixo e habilite <em>"Ver informações financeiras, pedidos e cancelamentos"</em> e o acesso ao app <code>{data?.packageName}</code>.
+              </p>
+            )}
+            {data?.serviceAccountEmail && (
+              <div className="flex items-center gap-2 rounded-md bg-background/70 px-2 py-1.5 text-xs font-mono break-all">
+                <span className="flex-1">{data.serviceAccountEmail}</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(data.serviceAccountEmail!); toast.success('Copiado'); }}
+                  className="p-1 hover:bg-muted rounded"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <a
               href="https://play.google.com/console/u/0/developers/-/users-and-permissions"
               target="_blank" rel="noreferrer"
@@ -248,6 +259,15 @@ const AdminAssinantes = () => {
             </a>
           </div>
         )}
+
+        {sync && !syncFatal && (
+          <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            Sincronizado com o Google Play: <strong className="text-foreground">{sync.checked ?? 0}</strong> compra(s) verificada(s),{' '}
+            <strong className="text-foreground">{sync.updated ?? 0}</strong> atualizada(s)
+            {sync.lastSyncAt && <> · {new Date(sync.lastSyncAt).toLocaleString('pt-BR')}</>}
+          </div>
+        )}
+
 
         {/* HERO — Receita estimada */}
         <section className="rounded-2xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent p-4 md:p-5">
