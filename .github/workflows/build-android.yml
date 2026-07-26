@@ -320,10 +320,18 @@ jobs:
           s = p.read_text()
           if 'name="splash_bg"' not in s:
               s = s.replace('</resources>', '    <color name="splash_bg">#FFD500</color>\n</resources>')
-              p.write_text(s)
               print('splash_bg color added')
           else:
               print('splash_bg color already present')
+          if 'name="app_bg"' not in s:
+              # Fundo escuro do app — usado no windowBackground base pra impedir
+              # que dialogs do sistema (copiar/colar, Credential Manager) puxem
+              # o splash amarelo como fundo flutuante.
+              s = s.replace('</resources>', '    <color name="app_bg">#0a0f1a</color>\n</resources>')
+              print('app_bg color added')
+          else:
+              print('app_bg color already present')
+          p.write_text(s)
           PY
 
           # values-v31/styles.xml — NÃO usar Theme.SplashScreen compat aqui.
