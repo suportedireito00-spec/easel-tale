@@ -123,7 +123,7 @@ export default function Assinatura() {
         toast.error(r.error ?? 'Falha na compra');
         return;
       }
-      track('subscription_completed', { plano: planKey, metodo: 'play', valor: playProducts.find(p => p.id === PRODUCT_IDS[planKey])?.price ?? 0 });
+      track('subscription_completed', { plano: planKey, metodo: 'play', valor: playProducts.find(p => p.productId === PRODUCT_IDS[planKey])?.price ?? '' });
       // Handshake pós-compra: força refresh + navega para overlay de boas-vindas
       // (não dependemos só do listener transactionUpdated).
       refreshSubscription();
