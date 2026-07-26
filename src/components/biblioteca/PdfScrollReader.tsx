@@ -5,12 +5,62 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createPortal } from 'react-dom';
 import { openPdfNative } from '@/lib/fileOpener';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { logPdfEvent } from '@/lib/pdfTelemetry';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+/**
+ * Normaliza URLs de compartilhamento comuns (Drive/Dropbox) para o
+ * arquivo binário direto. Sem isso, pdf.js recebe uma página HTML
+ * (viewer do Drive) e falha com "Invalid PDF structure".
+ */
+function normalizePdfUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    // Google Drive: /file/d/<id>/... ou ?id=<id>
+    if (/(^|\.)drive\.google\.com$/.test(u.hostname)) {
+      const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+      const id = m?.[1] || u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+    }
+    // Dropbox: ?dl=0 -> ?dl=1
+    if (/dropbox\.com$/.test(u.hostname)) {
+      u.searchParams.set('dl', '1');
+      return u.toString();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Em plataforma nativa (Android/iOS), a webview do Capacitor bloqueia várias
+ * respostas cross-origin (CORS/redirect). Baixa via CapacitorHttp (que roda
+ * fora da webview) e devolve os bytes para o pdf.js consumir.
+ */
+async function fetchPdfBytes(url: string): Promise<Uint8Array> {
+  const res = await CapacitorHttp.get({
+    url,
+    responseType: 'arraybuffer',
+    headers: { Accept: 'application/pdf,*/*' },
+  });
+  const data = res.data as any;
+  if (typeof data === 'string') {
+    // base64
+    const bin = atob(data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) return new Uint8Array((data as any).buffer);
+  throw new Error('Resposta HTTP inesperada ao baixar o PDF.');
+}
+
 
 interface Props {
   url: string;
@@ -50,7 +100,19 @@ const PdfScrollReader = ({ url, titulo, onClose, livroId }: Props) => {
     logPdfEvent({ url, event: 'load_start', livroId, livroTitulo: titulo });
     (async () => {
       try {
-        const task = pdfjsLib.getDocument({ url, withCredentials: false });
+        const normalizedUrl = normalizePdfUrl(url);
+
+        // No nativo, buscamos os bytes via CapacitorHttp (fora da webview)
+        // e passamos { data } para o pdf.js. Isso resolve CORS, redirects do
+        // Drive/Dropbox e evita o erro "Invalid PDF structure" quando o
+        // servidor devolve HTML em vez do binário.
+        const isNativeNow = Capacitor.isNativePlatform();
+        const source: any = isNativeNow
+          ? { data: await fetchPdfBytes(normalizedUrl) }
+          : { url: normalizedUrl, withCredentials: false };
+
+        const task = pdfjsLib.getDocument(source);
+
         // Log de progresso do download — ajuda a diagnosticar PDFs que ficam parados
         try {
           (task as any).onProgress = (p: { loaded: number; total: number }) => {
@@ -222,7 +284,15 @@ const PdfScrollReader = ({ url, titulo, onClose, livroId }: Props) => {
   const reader = (
     <div className="fixed inset-0 z-[1300] h-[100dvh] max-h-[100dvh] bg-neutral-900 flex flex-col overflow-hidden">
       {/* Header enxuto */}
-      <div className="flex items-center gap-3 px-4 h-14 shrink-0 bg-neutral-950/90 backdrop-blur border-b border-white/5">
+      <div
+        className="flex items-center gap-3 px-4 shrink-0 bg-neutral-950/95 backdrop-blur border-b border-white/5"
+        style={{
+          paddingTop: 'calc(var(--sai-top, env(safe-area-inset-top, 0px)) + 6px)',
+          paddingBottom: 6,
+          minHeight: 56,
+        }}
+      >
+
         <button
           onClick={onClose}
           className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
