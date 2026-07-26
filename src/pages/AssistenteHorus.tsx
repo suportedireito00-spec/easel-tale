@@ -24,6 +24,7 @@ import HorusSectionHero from '@/components/horus/HorusSectionHero';
 import { Switch } from '@/components/ui/switch';
 import HorusOnboardingOverlay from '@/components/horus/onboarding/HorusOnboardingOverlay';
 import { useHorusOnboarding } from '@/components/horus/onboarding/useHorusOnboarding';
+import { track } from '@/lib/analyticsEvents';
 import vacatioLogoAsset from '@/assets/logo-vacatio-v2.png.asset.json';
 import vacatioLogoBundled from '@/assets/bundled/logo-vacatio-v2.webp';
 import horusOwlAsset from '@/assets/horus/horus-owl.png.asset.json';
