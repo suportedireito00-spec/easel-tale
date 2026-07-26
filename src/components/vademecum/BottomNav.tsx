@@ -336,6 +336,9 @@ const BottomNav = () => {
                     onPointerEnter={() => { if (f.prefetch) prefetchRoute(f.prefetch); }}
                     onFocus={() => { if (f.prefetch) prefetchRoute(f.prefetch); }}
                     onClick={() => handleEstudo(f.action)}
+                    data-track="estudo_abrir"
+                    data-estudo-id={f.id}
+                    data-estudo-nome={f.label}
                     className="group flex items-center gap-4 p-4 min-h-[76px] rounded-xl bg-secondary/50 border border-border hover:border-primary/40 hover:bg-secondary transition-all text-left"
                   >
                     <Icon className="w-6 h-6 text-primary stroke-[1.5] shrink-0" />
