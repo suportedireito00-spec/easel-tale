@@ -54,6 +54,8 @@ const PREFETCH: Record<string, () => Promise<unknown>> = {
   '/radar/deputados': () => import('./RadarDeputados'),
   '/newsletter': () => import('./Newsletter'),
   '/configuracoes': () => import('./Configuracoes'),
+  '/ferramentas/peticao-inicial': () => import('./PeticaoInicial').catch(() => import('./Ferramentas')),
+  '/anotacoes/audio': () => import('./AnotacoesAudio').catch(() => import('./Ferramentas')),
 };
 const prefetched = new Set<string>();
 const prefetching = new Map<string, Promise<unknown>>();
