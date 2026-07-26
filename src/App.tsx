@@ -447,8 +447,12 @@ function DeepLinkBootstrap() {
 function AnimatedRoutes() {
   const location = useLocation();
   const { user } = useAuth();
+  const { data: profile } = useProfileSummary();
 
-  // GA4: pageview em cada route change.
+  // Screen tracking unificado (page_view + screen_view + scroll + screen_exit).
+  useScreenTracking();
+
+  // GA4: pageview em cada route change (mantido para compatibilidade).
   useEffect(() => {
     trackPageview(location.pathname + location.search);
     markRouteChange(location.pathname + location.search);
@@ -462,10 +466,13 @@ function AnimatedRoutes() {
     }
   }, [location.pathname, location.search]);
 
-  // GA4: vincular user_id quando autentica / desloga.
+  // GA4/Meta: vincular user_id e propriedades quando autentica / desloga.
   useEffect(() => {
-    setAnalyticsUser(user?.id ?? null);
-  }, [user?.id]);
+    setAnalyticsUserWithProfile(user?.id ?? null, {
+      email: user?.email,
+      is_premium: profile?.is_premium ?? false,
+    });
+  }, [user?.id, profile?.is_premium]);
 
   // Sem usuário logado, a Home persistente não monta.
   // Renderiza a landing imediatamente na raiz para nunca deixar tela preta,
