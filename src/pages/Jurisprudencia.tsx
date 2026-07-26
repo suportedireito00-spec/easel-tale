@@ -11,6 +11,7 @@ import { fetchSumulas } from '@/services/sumulasService';
 import { fetchPesquisasProntas } from '@/services/pesquisasProntasService';
 import { fetchEdicoes } from '@/services/informativosService';
 import { fetchTesesEdicoes } from '@/services/tesesService';
+import { track } from '@/lib/analyticsEvents';
 
 function prefetchTarget(id: string) {
   if (id.startsWith('PRONTAS_')) {
