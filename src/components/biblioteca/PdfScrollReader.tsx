@@ -100,7 +100,19 @@ const PdfScrollReader = ({ url, titulo, onClose, livroId }: Props) => {
     logPdfEvent({ url, event: 'load_start', livroId, livroTitulo: titulo });
     (async () => {
       try {
-        const task = pdfjsLib.getDocument({ url, withCredentials: false });
+        const normalizedUrl = normalizePdfUrl(url);
+
+        // No nativo, buscamos os bytes via CapacitorHttp (fora da webview)
+        // e passamos { data } para o pdf.js. Isso resolve CORS, redirects do
+        // Drive/Dropbox e evita o erro "Invalid PDF structure" quando o
+        // servidor devolve HTML em vez do binário.
+        const isNativeNow = Capacitor.isNativePlatform();
+        const source: any = isNativeNow
+          ? { data: await fetchPdfBytes(normalizedUrl) }
+          : { url: normalizedUrl, withCredentials: false };
+
+        const task = pdfjsLib.getDocument(source);
+
         // Log de progresso do download — ajuda a diagnosticar PDFs que ficam parados
         try {
           (task as any).onProgress = (p: { loaded: number; total: number }) => {
