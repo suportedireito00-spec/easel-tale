@@ -1,16 +1,20 @@
 import { WhatsappShareButton, TelegramShareButton, WhatsappIcon, TelegramIcon } from 'react-share';
 import { Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { buildSmartLink } from '@/lib/nativeDeepLinks';
 
 interface ShareButtonsProps {
   artigoNumero: string;
   artigoTexto: string;
   leiNome?: string;
+  leiSlug?: string;
 }
 
-const ShareButtons = ({ artigoNumero, artigoTexto, leiNome }: ShareButtonsProps) => {
+const ShareButtons = ({ artigoNumero, artigoTexto, leiNome, leiSlug }: ShareButtonsProps) => {
   const text = `Art. ${artigoNumero}${leiNome ? ` do ${leiNome}` : ''}\n\n${artigoTexto.slice(0, 300)}${artigoTexto.length > 300 ? '…' : ''}\n\nvia Vacatio - Vade Mecum`;
-  const url = typeof window !== 'undefined' ? window.location.href : '';
+  const url = leiSlug
+    ? buildSmartLink('lei', { slug: leiSlug, artigo: artigoNumero })
+    : (typeof window !== 'undefined' ? window.location.href : '');
 
   const handleNativeShare = async () => {
     try {

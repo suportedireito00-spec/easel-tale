@@ -60,6 +60,7 @@ import Index from "./pages/Index.tsx";
 import PersistentHome from "./components/PersistentHome";
 import Auth from "./pages/Auth.tsx";
 import Landing from "./pages/Landing.tsx";
+import SmartLink from "./pages/SmartLink.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import AdminFuncoes from "./pages/AdminFuncoes.tsx";
@@ -506,6 +507,7 @@ function AnimatedRoutes() {
         <Routes location={location} key={location.pathname}>
           <Route path="/auth" element={<Auth />} />
           <Route path="/landing" element={<Landing />} />
+          <Route path="/ir/*" element={<SmartLink />} />
           <Route path="/privacidade" element={<Privacidade />} />
           <Route path="/termos" element={<Termos />} />
           <Route path="/excluir-conta" element={<ExcluirContaPublico />} />
