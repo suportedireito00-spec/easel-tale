@@ -825,13 +825,13 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
       if (res.status === 402 || errorBody.includes('daily_narration_limit_reached')) {
         setNarracaoLoading(false);
         setNarracaoStepIdx(0);
-        openPremiumGate('narracao', 'Você atingiu o limite gratuito de narrações por dia. Assine para ouvir sem limite.');
+        openPremiumGate('narracao', 'Você usou suas 3 narrações gratuitas deste mês. Comece 7 dias grátis para ouvir sem limite.');
         return;
       }
       if (res.status === 401 || errorBody.includes('authentication_required')) {
         setNarracaoLoading(false);
         setNarracaoStepIdx(0);
-        openPremiumGate('narracao', 'Entre na sua conta para usar a narração gratuita diária.');
+        openPremiumGate('narracao', 'Entre na sua conta para usar as narrações gratuitas.');
         return;
       }
       console.error(`Erro ao gerar narração [${res.status}]:`, errorBody);
@@ -886,7 +886,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
       const articleRefKey = tabelaNome && artigo?.numero ? `${tabelaNome}_${artigo.numero}` : null;
       const iniciandoReproducao = !narracaoPlaying && !!articleRefKey;
       if (iniciandoReproducao && !isPremium && !(await canUseRef('narracao', articleRefKey))) {
-        openPremiumGate('narracao', 'Você atingiu o limite gratuito de narrações por dia. Assine para ouvir sem limite.');
+        openPremiumGate('narracao', 'Você usou suas 3 narrações gratuitas deste mês. Comece 7 dias grátis para ouvir sem limite.');
         return;
       }
 
