@@ -1,12 +1,15 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Crown, X, Volume2, Sparkles, BookOpen, MessageCircle, Scale, PlayCircle,
   Network, Bell, Download, StickyNote, Highlighter, FileText, Layers,
-  HelpCircle, Map, Radar, Newspaper, Library, GraduationCap, Bot,
+  HelpCircle, Map, Radar, Newspaper, Library, GraduationCap, Bot, ChevronLeft,
   type LucideIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { BENEFICIOS_PREMIUM } from '@/lib/premiumBeneficios';
+
 
 export type PremiumFeatureKey =
   | 'narracao' | 'explicacao' | 'exemplo' | 'termos' | 'perguntar'
