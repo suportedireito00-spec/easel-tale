@@ -7485,6 +7485,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_lista_provider: {
+        Args: { _provider: string; _tipo: string }
+        Returns: {
+          criado_em: string
+          email: string
+          nome: string
+          provider: string
+          user_id: string
+        }[]
+      }
       admin_metricas_dia: { Args: { _dia: string }; Returns: Json }
       admin_totais: { Args: { _tipo: string }; Returns: Json }
       admin_user_auth_providers: {
