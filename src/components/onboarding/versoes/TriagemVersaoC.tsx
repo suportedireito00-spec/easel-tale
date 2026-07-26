@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, Volume2, VolumeX, X } from 'lucide-react';
 import {
@@ -12,13 +12,15 @@ import {
 } from './triagemShared';
 import { useTriagemAudio } from './useTriagemAudio';
 
+const CadastroFeaturesReel = lazy(() => import('../CadastroFeaturesReel'));
+
 type Props = {
   open: boolean;
   onFinished: (r: TriagemResult) => void;
   previewMode?: boolean;
 };
 
-type Step = 'abertura' | 'persona' | 'interesses' | 'dores' | 'nome' | 'whatsapp';
+type Step = 'abertura' | 'persona' | 'interesses' | 'dores' | 'nome' | 'whatsapp' | 'features';
 const CONTENT_STEPS: Step[] = ['persona', 'interesses', 'dores', 'nome', 'whatsapp'];
 
 const CARD_BG: Record<Exclude<Step, 'abertura'>, { grad: string; accent: string; label: string }> = {
