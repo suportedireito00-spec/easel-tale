@@ -3133,7 +3133,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
               <div aria-hidden="true" />
             ) : (
               <button
-                onClick={() => { if (!isPremium) { openPremiumGate('anotacoes', 'Anotações pessoais em cada artigo. Assine para desbloquear.'); return; } setShowAnotacoesSheet(true); setShowFontControls(false); }}
+                onClick={() => gateFeature('lei_anotacao', 'anotacoes', 'Anotações', () => { setShowAnotacoesSheet(true); setShowFontControls(false); })}
                 className="relative flex flex-col items-center justify-end gap-1.5 py-1.5 text-foreground hover:text-primary transition-colors"
               >
                 <span className="relative">
