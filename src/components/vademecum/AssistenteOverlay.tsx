@@ -26,6 +26,9 @@ import {
 } from '@/components/chat/ChatSources';
 import { ChatFeedback } from '@/components/chat/ChatFeedback';
 import { stripCitations } from '@/components/chat/ChatSources';
+import PremiumGate, { type PremiumFeatureKey } from '@/components/PremiumGate';
+import { useFeatureLimit } from '@/hooks/useFeatureLimit';
+
 
 type ArtifactKind = 'flashcards' | 'questoes' | 'mapa' | 'termos';
 interface Artifact { id: string; kind: ArtifactKind; data: any; sourceId: string; createdAt: number; title: string }
