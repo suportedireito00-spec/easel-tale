@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Loader2, Clock, Activity, Flame, Star, Calendar, Crown, Phone, Mail,
-  GraduationCap, LayoutGrid, MessageCircle,
+  GraduationCap, LayoutGrid, MessageCircle, MapPin, Smartphone,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +39,13 @@ interface Dossie {
   assinatura: any;
   horus: any;
   horusStats: any;
+  geo: {
+    pais: string | null; uf: string | null; cidade: string | null;
+    timezone: string | null; locale: string | null;
+  };
+  plataformas: [string, number][];
+  ultimaSessao?: string | null;
+  primeiraSessao?: string | null;
 }
 
 const GAP_MAX = 10 * 60 * 1000; // 10min entre pings = mesma sessão de tela
@@ -72,7 +79,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
           .eq('user_id', userId).gte('last_seen_at', desde30)
           .order('last_seen_at', { ascending: true }).limit(2000),
         supabase.from('user_sessions' as any)
-          .select('started_at, platform, initial_route')
+          .select('started_at, platform, initial_route, pais, uf, cidade, timezone, locale')
           .eq('user_id', userId).gte('started_at', desde30)
           .order('started_at', { ascending: false }).limit(500),
         supabase.from('feature_usage' as any)
@@ -148,6 +155,16 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
         assinatura: assR.data,
         horus: (horusR as any)?.data || null,
         horusStats: (horusStatsR as any)?.data || null,
+        geo: {
+          pais: sessoes.find((x) => x.pais)?.pais ?? perfilR.data?.pais ?? null,
+          uf: sessoes.find((x) => x.uf)?.uf ?? perfilR.data?.uf ?? null,
+          cidade: sessoes.find((x) => x.cidade)?.cidade ?? perfilR.data?.cidade ?? null,
+          timezone: sessoes.find((x) => x.timezone)?.timezone ?? perfilR.data?.timezone ?? null,
+          locale: sessoes.find((x) => x.locale)?.locale ?? perfilR.data?.locale ?? null,
+        },
+        plataformas: countBy(sessoes.filter((x) => x.platform), 'platform'),
+        ultimaSessao: sessoes[0]?.started_at ?? null,
+        primeiraSessao: sessoes[sessoes.length - 1]?.started_at ?? null,
       });
       setLoading(false);
     })();
@@ -268,7 +285,7 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
                   <Calendar className="w-4 h-4 text-muted-foreground shrink-0" /> Desde {dia(d.perfil?.created_at)}
                 </div>
                 <div className="flex items-center gap-2 font-body text-[15px] text-foreground truncate">
-                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" /> {telefone || 'Sem número'}
+                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" /> {telefone || 'Sem número (pulou no cadastro)'}
                 </div>
                 <div className="flex items-center gap-2 font-body text-[15px] text-foreground truncate">
                   <Mail className="w-4 h-4 text-muted-foreground shrink-0" /> <span className="truncate">{email || '—'}</span>
@@ -280,6 +297,39 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
                   {String(d.assinatura.status || '').replace('SUBSCRIPTION_STATE_', '')}
                   {d.assinatura.expires_at ? ` · expira ${dia(d.assinatura.expires_at)}` : ''}
                 </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 font-body text-[14px] font-medium text-muted-foreground">
+                <MapPin className="w-[18px] h-[18px] text-primary" /> Localização e dispositivo
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="País" value={d.geo.pais || 'Não capturado'} />
+                <Campo label="Estado / região" value={d.geo.uf || '—'} />
+                <Campo label="Cidade" value={d.geo.cidade || '—'} />
+                <Campo label="Fuso horário" value={d.geo.timezone || '—'} />
+                <Campo label="Idioma do aparelho" value={d.geo.locale || '—'} />
+                <Campo
+                  label="Plataformas"
+                  value={
+                    d.plataformas.length
+                      ? d.plataformas.map(([p, n]) => `${p} (${n})`).join(', ')
+                      : '—'
+                  }
+                />
+                <Campo label="Primeira sessão" value={dia(d.primeiraSessao)} />
+                <Campo label="Última sessão" value={`${dia(d.ultimaSessao)} ${hora(d.ultimaSessao)}`} />
+                <Campo label="Sessões (30 dias)" value={d.sessoesTotal} />
+                <Campo
+                  label="Onboarding"
+                  value={d.perfil?.onboarding_completed_at ? `Concluído ${dia(d.perfil.onboarding_completed_at)}` : 'Não concluído'}
+                />
+              </div>
+              {!d.geo.pais && (
+                <p className="font-body text-[13px] text-muted-foreground">
+                  Sem localização registrada: o usuário ainda não abriu o app depois da coleta de país/estado.
+                </p>
               )}
             </div>
 
