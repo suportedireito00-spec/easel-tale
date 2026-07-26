@@ -342,7 +342,9 @@ const MobileHomeSections = ({ onTabChange, onNewsOpenChange }: Props = {}) => {
                     }
                     if (c.route) { navigate(c.route); return; }
                   }}
-
+                  data-track="home_card_click"
+                  data-track-name={c.label}
+                  data-track-section="categorias"
                 />
               ))}
             </div>
