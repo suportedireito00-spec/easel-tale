@@ -231,7 +231,9 @@ const SearchOverlay = ({ open, onClose, onSelectLei }: SearchOverlayProps) => {
           {/* Mode toggle: Nº do Artigo | Nº da Lei | Recentes */}
           <div className="flex gap-2 px-4 py-3">
             <button
-              onClick={() => setMode('leis')}
+              onClick={() => { track('search_modo_trocado', { modo: 'leis' }); setMode('leis'); }}
+              data-track="search_modo_trocado"
+              data-modo="leis"
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'leis' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}
@@ -240,7 +242,9 @@ const SearchOverlay = ({ open, onClose, onSelectLei }: SearchOverlayProps) => {
               <span className="whitespace-nowrap">Leis</span>
             </button>
             <button
-              onClick={() => setMode('conteudo')}
+              onClick={() => { track('search_modo_trocado', { modo: 'conteudo' }); setMode('conteudo'); }}
+              data-track="search_modo_trocado"
+              data-modo="conteudo"
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'conteudo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}
@@ -249,7 +253,9 @@ const SearchOverlay = ({ open, onClose, onSelectLei }: SearchOverlayProps) => {
               <span className="whitespace-nowrap">Conteúdo</span>
             </button>
             <button
-              onClick={() => setMode('favoritos')}
+              onClick={() => { track('search_modo_trocado', { modo: 'favoritos' }); setMode('favoritos'); }}
+              data-track="search_modo_trocado"
+              data-modo="favoritos"
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'favoritos' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}
