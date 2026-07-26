@@ -494,10 +494,11 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
         open={gateOpen}
         onClose={() => setGateOpen(false)}
         feature="biblioteca"
-        title="Limite da biblioteca atingido"
-        description="Free lê 1 livro por coleção/mês. Assine para ter todas as coleções liberadas."
-        usageLabel={config ? `Você já leu ${used} livro(s) desta coleção este mês` : undefined}
+        title="Você já leu seu livro grátis deste mês"
+        description="No plano gratuito você lê 1 livro por mês — com leitura nativa, PDF, folheada, offline e desktop. Assine para liberar todo o acervo."
+        usageLabel={config ? 'Livro gratuito do mês já utilizado' : undefined}
       />
+
       <LembreteSheet
         open={lembreteOpen}
         onClose={() => setLembreteOpen(false)}
