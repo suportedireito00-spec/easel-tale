@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/vademecum/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   BookOpen, FileText, Sparkles, RefreshCcw, Play, Loader2,
-  CheckCircle2, AlertCircle, Clock, Filter, ListChecks,
+  CheckCircle2, AlertCircle, Clock, ListChecks, ChevronDown, ChevronRight, Eye,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBibliotecaLeituraStatus, type LivroLeituraItem } from '@/hooks/useBibliotecaLeituraStatus';
+import LeitorNativo from '@/components/biblioteca/LeitorNativo';
 
 type Filtro = 'todos' | 'pendente' | 'processando' | 'pronto' | 'erro' | 'refino-pendente';
 
@@ -30,16 +30,16 @@ const AdminLeituraNativa = () => {
   const navigate = useNavigate();
   const { items, loading, reload } = useBibliotecaLeituraStatus();
   const [busca, setBusca] = useState('');
-  const [colecaoId, setColecaoId] = useState<string>('todas');
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchRunning, setBatchRunning] = useState(false);
+  const [openColecao, setOpenColecao] = useState<string | null>(null);
+  const [preview, setPreview] = useState<LivroLeituraItem | null>(null);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return items.filter((it) => {
-      if (!it.download && !it.link) return false; // só livros com PDF
-      if (colecaoId !== 'todas' && it.colecao.id !== colecaoId) return false;
+      if (!it.download && !it.link) return false;
       const s = it.leitura?.status; const r = it.leitura?.refino_status;
       if (filtro === 'pendente' && s) return false;
       if (filtro === 'processando' && s !== 'processando' && r !== 'processando') return false;
@@ -52,7 +52,18 @@ const AdminLeituraNativa = () => {
       }
       return true;
     });
-  }, [items, busca, colecaoId, filtro]);
+  }, [items, busca, filtro]);
+
+  // Agrupa por coleção
+  const grupos = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; itens: LivroLeituraItem[] }>();
+    for (const it of filtered) {
+      const g = map.get(it.colecao.id) ?? { id: it.colecao.id, label: it.colecao.label, itens: [] };
+      g.itens.push(it);
+      map.set(it.colecao.id, g);
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  }, [filtered]);
 
   const keyOf = (it: LivroLeituraItem) => `${it.colecao.table}::${it.id}`;
 
@@ -64,13 +75,14 @@ const AdminLeituraNativa = () => {
       return next;
     });
   };
-  const toggleAllFiltered = () => {
+
+  const toggleGrupo = (grp: { itens: LivroLeituraItem[] }) => {
     setSelected((prev) => {
-      const allK = filtered.map(keyOf);
-      const allSelected = allK.every((k) => prev.has(k));
+      const ks = grp.itens.map(keyOf);
+      const all = ks.every((k) => prev.has(k));
       const next = new Set(prev);
-      if (allSelected) allK.forEach((k) => next.delete(k));
-      else allK.forEach((k) => next.add(k));
+      if (all) ks.forEach((k) => next.delete(k));
+      else ks.forEach((k) => next.add(k));
       return next;
     });
   };
@@ -169,22 +181,6 @@ const AdminLeituraNativa = () => {
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex items-center gap-1 text-white/60 text-xs">
-            <Filter className="h-3 w-3" /> Coleção:
-          </div>
-          <Chip active={colecaoId === 'todas'} onClick={() => setColecaoId('todas')}>Todas</Chip>
-          {[...new Set(items.map((i) => i.colecao.id))].map((cid) => {
-            const c = items.find((i) => i.colecao.id === cid)?.colecao;
-            if (!c) return null;
-            return (
-              <Chip key={cid} active={colecaoId === cid} onClick={() => setColecaoId(cid)}>
-                {c.label}
-              </Chip>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
           <div className="flex items-center gap-1 text-white/60 text-xs">Status:</div>
           {(['todos','pendente','processando','pronto','erro','refino-pendente'] as Filtro[]).map((f) => (
             <Chip key={f} active={filtro === f} onClick={() => setFiltro(f)}>{f}</Chip>
@@ -205,11 +201,7 @@ const AdminLeituraNativa = () => {
           </div>
         )}
 
-        <div className="flex justify-between items-center text-xs text-white/50">
-          <button className="flex items-center gap-1 hover:text-white" onClick={toggleAllFiltered}>
-            <ListChecks className="h-3 w-3" />
-            {filtered.every((it) => selected.has(keyOf(it))) && filtered.length > 0 ? 'Desmarcar todos' : 'Selecionar todos filtrados'}
-          </button>
+        <div className="flex justify-end">
           <Button size="sm" variant="outline" onClick={dispararWorker} disabled={batchRunning}>
             {batchRunning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Play className="h-3 w-3 mr-1" />}
             Rodar fila agora
@@ -218,71 +210,129 @@ const AdminLeituraNativa = () => {
 
         {loading ? (
           <div className="text-center text-white/60 py-10"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+        ) : grupos.length === 0 ? (
+          <div className="text-center text-white/50 py-10">Nenhum livro nos filtros atuais.</div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((it) => {
-              const k = keyOf(it);
-              const b = badgeFor(it);
-              const B = b.Icon;
-              const upd = it.leitura?.refino_updated_at ?? it.leitura?.updated_at;
+            {grupos.map((g) => {
+              const isOpen = openColecao === g.id;
+              const prontos = g.itens.filter((i) => i.leitura?.status === 'pronto' && i.leitura?.refino_status === 'pronto').length;
+              const rodando = g.itens.filter((i) => i.leitura?.status === 'processando' || i.leitura?.refino_status === 'processando').length;
+              const erros = g.itens.filter((i) => i.leitura?.status === 'erro' || i.leitura?.refino_status === 'erro').length;
               return (
-                <div key={k} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex gap-3 items-start">
-                  <input type="checkbox" className="mt-1 accent-yellow-400"
-                    checked={selected.has(k)} onChange={() => toggle(it)} />
-                  <div className="w-10 h-14 rounded-md overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
-                    {it.capa ? (
-                      <img src={it.capa} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : <BookOpen className="h-4 w-4 text-white/40" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold truncate">{it.titulo}</div>
-                    <div className="text-xs text-white/50 truncate">
-                      {it.colecao.label}{it.autor ? ` · ${it.autor}` : ''}
+                <div key={g.id} className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                  <button
+                    onClick={() => setOpenColecao(isOpen ? null : g.id)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-white/[0.04] transition text-left"
+                  >
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-white/60" /> : <ChevronRight className="h-4 w-4 text-white/60" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate">{g.label}</div>
+                      <div className="text-[11px] text-white/50 flex gap-2 mt-0.5">
+                        <span>{g.itens.length} livro(s)</span>
+                        {prontos > 0 && <span className="text-emerald-300">• {prontos} prontos</span>}
+                        {rodando > 0 && <span className="text-amber-300">• {rodando} rodando</span>}
+                        {erros > 0 && <span className="text-red-300">• {erros} erros</span>}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 items-center mt-1">
-                      <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border ${b.tone}`}>
-                        <B className={`h-3 w-3 ${b.spin ? 'animate-spin' : ''}`} />
-                        {b.label}
-                      </span>
-                      {it.leitura?.total_paginas ? (
-                        <span className="text-[10px] text-white/40">{it.leitura.total_paginas} pág.</span>
-                      ) : null}
-                      {upd ? (
-                        <span className="text-[10px] text-white/40">{new Date(upd).toLocaleString('pt-BR')}</span>
-                      ) : null}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleGrupo(g); }}
+                      className="text-[10px] text-white/60 hover:text-white flex items-center gap-1 px-2 py-1 rounded-md border border-white/10"
+                    >
+                      <ListChecks className="h-3 w-3" /> selecionar
+                    </button>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-white/10 p-2 space-y-2">
+                      {g.itens.map((it) => {
+                        const k = keyOf(it);
+                        const b = badgeFor(it);
+                        const B = b.Icon;
+                        const upd = it.leitura?.refino_updated_at ?? it.leitura?.updated_at;
+                        const podePrev = it.leitura?.status === 'pronto';
+                        return (
+                          <div key={k} className="rounded-xl border border-white/10 bg-black/40 p-3 flex gap-3 items-start">
+                            <input type="checkbox" className="mt-1 accent-yellow-400"
+                              checked={selected.has(k)} onChange={() => toggle(it)} />
+                            <div className="w-10 h-14 rounded-md overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
+                              {it.capa ? (
+                                <img src={it.capa} alt="" className="w-full h-full object-cover" loading="lazy" />
+                              ) : <BookOpen className="h-4 w-4 text-white/40" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold truncate">{it.titulo}</div>
+                              {it.autor && (
+                                <div className="text-xs text-white/50 truncate">{it.autor}</div>
+                              )}
+                              <div className="flex flex-wrap gap-2 items-center mt-1">
+                                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border ${b.tone}`}>
+                                  <B className={`h-3 w-3 ${b.spin ? 'animate-spin' : ''}`} />
+                                  {b.label}
+                                </span>
+                                {it.leitura?.total_paginas ? (
+                                  <span className="text-[10px] text-white/40">{it.leitura.total_paginas} pág.</span>
+                                ) : null}
+                                {upd ? (
+                                  <span className="text-[10px] text-white/40">{new Date(upd).toLocaleString('pt-BR')}</span>
+                                ) : null}
+                              </div>
+                              {it.leitura?.etapa && (it.leitura.status === 'processando' || it.leitura.refino_status === 'processando') && (
+                                <div className="text-[10px] text-white/50 mt-1 truncate">{it.leitura.etapa}</div>
+                              )}
+                              {(it.leitura?.erro_detalhe || it.leitura?.refino_erro) && (
+                                <div className="text-[10px] text-red-300 mt-1 truncate">{it.leitura.erro_detalhe || it.leitura.refino_erro}</div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <Button size="sm" className="h-7 bg-yellow-400 text-black hover:bg-yellow-300"
+                                onClick={() => processar(it, 'completo')}>
+                                <Sparkles className="h-3 w-3 mr-1" /> Extrair
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px] px-2 disabled:opacity-40"
+                                disabled={!podePrev}
+                                onClick={() => setPreview(it)}
+                                title={podePrev ? 'Prévia nativa' : 'Extraia o livro antes de pré-visualizar'}
+                              >
+                                <Eye className="h-3 w-3 mr-1" /> Prévia
+                              </Button>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" className="h-7 text-[10px] px-2"
+                                  onClick={() => processar(it, 'ocr')} title="Só OCR">
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-[10px] px-2"
+                                  onClick={() => processar(it, 'refino')} title="Só refino Gemini">
+                                  <Sparkles className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {it.leitura?.etapa && (it.leitura.status === 'processando' || it.leitura.refino_status === 'processando') && (
-                      <div className="text-[10px] text-white/50 mt-1 truncate">{it.leitura.etapa}</div>
-                    )}
-                    {(it.leitura?.erro_detalhe || it.leitura?.refino_erro) && (
-                      <div className="text-[10px] text-red-300 mt-1 truncate">{it.leitura.erro_detalhe || it.leitura.refino_erro}</div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1 shrink-0">
-                    <Button size="sm" className="h-7 bg-yellow-400 text-black hover:bg-yellow-300"
-                      onClick={() => processar(it, 'completo')}>
-                      <Sparkles className="h-3 w-3 mr-1" /> Extrair
-                    </Button>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" className="h-7 text-[10px] px-2"
-                        onClick={() => processar(it, 'ocr')} title="Só OCR">
-                        <FileText className="h-3 w-3" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 text-[10px] px-2"
-                        onClick={() => processar(it, 'refino')} title="Só refino Gemini">
-                        <Sparkles className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
-            {filtered.length === 0 && (
-              <div className="text-center text-white/50 py-10">Nenhum livro nos filtros atuais.</div>
-            )}
           </div>
         )}
       </div>
+
+      {preview && (
+        <LeitorNativo
+          livroId={String(preview.id)}
+          livroTabela={preview.colecao.table}
+          pdfUrl={preview.download || preview.link || ''}
+          titulo={preview.titulo}
+          autor={preview.autor ?? undefined}
+          capa={preview.capa ?? undefined}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 };
