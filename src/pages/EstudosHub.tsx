@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/vademecum/PageHeader';
 import { useStudyStats, TABLE_NAMES } from '@/hooks/useStudyStats';
+import { track } from '@/lib/analyticsEvents';
 
 
 const STUDY_FEATURES = [
