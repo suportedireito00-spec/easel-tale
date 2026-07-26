@@ -66,6 +66,7 @@ const AssistenteApp = () => {
       toast.error('Informe um número de WhatsApp válido com DDD.');
       return;
     }
+    track('assistente_phone_confirmed', { phone_digits: digits.length });
     haptic.success();
     localStorage.setItem(STORAGE_KEY, digits);
     setConfirmed(true);
@@ -73,6 +74,7 @@ const AssistenteApp = () => {
   };
 
   const handleFalar = () => {
+    track('assistente_chat_opened', { source: 'landing_card' });
     haptic.selection();
     setChatOpen(true);
   };
