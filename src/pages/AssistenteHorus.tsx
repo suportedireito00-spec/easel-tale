@@ -229,11 +229,13 @@ const AssistenteHorus = () => {
   const { isPremium } = useSubscription();
 
   function openWhatsApp() {
+    track('horus_whatsapp_redirect', { verified: isVerified, source: 'horus_page' });
     const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(WHATSAPP_MSG)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
   function handleWhatsAppClick() {
     haptic.light();
+    track('horus_whatsapp_click', { verified: isVerified });
     if (!isVerified) {
       setWaIntent(true);
       setVerifyOpen(true);
