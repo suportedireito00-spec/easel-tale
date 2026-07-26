@@ -6,6 +6,7 @@ import {
   Pencil, Sparkles, Bell as BellIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfileSummary } from '@/hooks/useProfileSummary';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAppUsageTime } from '@/hooks/useAppUsageTime';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -114,7 +115,9 @@ const SideMenu = ({ open, onClose, onNavigate }: SideMenuProps) => {
     user?.email?.split('@')[0] ||
     'Usuário';
   const userEmail = user?.email || '';
+  const { data: profileSummary } = useProfileSummary();
   const rawAvatarUrl =
+    (profileSummary?.avatarUrl || undefined) ||
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined);
   const [avatarBroken, setAvatarBroken] = useState(false);
