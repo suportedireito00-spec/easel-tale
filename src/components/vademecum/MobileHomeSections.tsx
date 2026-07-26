@@ -372,6 +372,9 @@ const MobileHomeSections = ({ onTabChange, onNewsOpenChange }: Props = {}) => {
                   color={c.color}
                   delay={i * 0.05}
                   onClick={() => handle(c.id)}
+                  data-track="home_card_click"
+                  data-track-name={c.label}
+                  data-track-section="emalta"
                 />
               ))}
             </div>
