@@ -312,23 +312,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    const [reporting, local] = await Promise.all([
-      fetchReporting().catch((err) => ({ error: String(err?.message ?? err) })),
-      fetchSubscribersLocal(admin),
-    ]);
+    // ?sync=true (ou body { sync: true }) → consulta cada compra no Google Play antes de agregar
+    let wantSync = true;
+    try {
+      const body = await req.json().catch(() => ({}));
+      if (body && typeof body.sync === 'boolean') wantSync = body.sync;
+    } catch { /* ignore */ }
+
+    let sync: SyncResult | { error: string } | null = null;
+    if (wantSync) {
+      const { data: pending } = await admin
+        .from('play_subscriptions')
+        .select('id, user_id, purchase_token, status')
+        .order('updated_at', { ascending: true })
+        .limit(120);
+      sync = await syncWithGoogle(admin, (pending ?? []) as any).catch((err) => ({
+        error: String((err as Error)?.message ?? err),
+      }));
+    }
+
+    const local = await fetchSubscribersLocal(admin);
 
     // Extrai e-mail da service account (para mensagem de erro 403 amigável)
     let serviceAccountEmail: string | null = null;
     try { serviceAccountEmail = JSON.parse(SERVICE_ACCOUNT_JSON).client_email ?? null; } catch { /* ignore */ }
 
     return new Response(JSON.stringify({
-      reporting,
+      sync,
       local,
       packageName: PACKAGE_NAME,
       serviceAccountEmail,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
   } catch (err) {
     console.error('play-reporting error', err);
     return new Response(JSON.stringify({ error: String((err as Error)?.message ?? err) }), {
