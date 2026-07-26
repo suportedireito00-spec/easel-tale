@@ -375,9 +375,11 @@ const AdminFuncoes = () => {
       <PageHeader title="Funções Admin" onBack={() => navigate('/')} />
 
       <div className="p-4">
+        <AdminHojeCards />
         <p className="font-body text-[12px] text-muted-foreground mb-3 px-1">
           Toque em uma categoria para ver as funções disponíveis.
         </p>
+
         <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
