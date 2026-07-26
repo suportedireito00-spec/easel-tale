@@ -307,6 +307,7 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
   };
 
   const generateFromMsg = async (msg: Message, kind: ArtifactKind) => {
+    track('chat_juridico_artifact_gerado', { kind, message_length: msg.content.length });
     const label =
       kind === 'flashcards' ? 'Gerando flashcards'
       : kind === 'questoes' ? 'Gerando questões'
