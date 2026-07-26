@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMeuEspacoFeed, MEU_ESPACO_FEED_KEY, type MeuEspacoFeedItem } from "@/services/meuEspacoFeed";
 import { prefetchAllPessoal, prefetchPessoalByPath } from "@/services/pessoalPrefetch";
+import { track } from "@/lib/analyticsEvents";
 
 const PESSOAL_SNAP = "sheet_snapshot";
 const prefetchRoute = (path: string) => {
