@@ -274,12 +274,18 @@ export function AdminHojeCards() {
           <button
             key={id}
             onClick={() => openCard(id)}
-            className="rounded-2xl border border-border/60 bg-secondary/30 px-2.5 py-3 text-left hover:bg-secondary/60 active:bg-secondary transition-colors"
+            className="relative rounded-2xl border border-border/60 bg-secondary/30 px-2.5 py-3 text-left hover:bg-secondary/60 active:bg-secondary transition-colors"
           >
+            {counts[id] - (seenCounts[id] || 0) > 0 && (
+              <span className="absolute top-2 right-2 inline-flex items-center rounded-full bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-[1px] font-body text-[10px] font-bold text-emerald-400 animate-pulse">
+                +{counts[id] - (seenCounts[id] || 0)}
+              </span>
+            )}
             <Icon className="w-4 h-4 text-primary mb-1.5" />
             <div className="font-display text-xl font-bold text-foreground leading-none">{counts[id]}</div>
             <div className="font-body text-[10.5px] text-muted-foreground mt-1 leading-tight">{label}</div>
           </button>
+
         ))}
       </div>
 
