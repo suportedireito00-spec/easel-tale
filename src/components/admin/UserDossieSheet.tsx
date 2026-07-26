@@ -85,6 +85,14 @@ export function UserDossieSheet({ userId, nome, email, provider, onClose }: Prop
         supabase.from('play_subscriptions' as any)
           .select('product_id, base_plan_id, status, expires_at, auto_renewing')
           .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('horus_whatsapp_users' as any)
+          .select('phone_e164, verified_at, msg_count, last_seen_at, first_seen_at, blocked, onboarding_state, nome_preferido, linked_at')
+          .or(`user_id.eq.${userId},linked_user_id.eq.${userId}`)
+          .order('verified_at', { ascending: false, nullsFirst: false })
+          .limit(1).maybeSingle(),
+        supabase.from('horus_user_stats' as any)
+          .select('telefone, ultima_atividade_em, dias_streak_estudo')
+          .eq('user_id', userId).maybeSingle(),
       ]);
       if (cancel) return;
 
