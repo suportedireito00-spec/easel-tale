@@ -154,7 +154,11 @@ Deno.serve(async (req) => {
   });
 
   try {
+    // ============ 0) alertas do admin (cadastro / trial) ============
+    try { await processarAdminAlertas(admin); } catch (e) { console.error('[reminders-tick] admin alertas', e); }
+
     // ============ 1) reading_reminders ============
+
     const { data: needSchedule } = await admin.from('reading_reminders')
       .select('*').eq('enabled', true).is('next_fire_at', null).limit(200);
     for (const r of needSchedule || []) {
