@@ -4,8 +4,8 @@ import { Scale, ChevronRight, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import PessoalListLayout from "./PessoalListLayout";
 import { getFavoritos, LEIS_FAVORITOS_EVENT, LeiFavorita } from "@/lib/leisFavoritos";
-import { LEIS_CATALOG, getLeiByTabela } from "@/data/leisCatalog";
-import { tipoToSlug, leiToSlug } from "@/lib/legislacaoSlugs";
+import { LEIS_CATALOG } from "@/data/leisCatalog";
+import LeiFavoritaArtigosSheet from "@/components/pessoal/LeiFavoritaArtigosSheet";
 
 const TIPO_LABEL: Record<string, string> = {
   constituicao: "Constituição",
@@ -17,8 +17,8 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 export default function MinhasLeisPage() {
-  const navigate = useNavigate();
   const [favs, setFavs] = useState<LeiFavorita[]>(() => getFavoritos());
+  const [openLei, setOpenLei] = useState<LeiFavorita | null>(null);
 
   useEffect(() => {
     const refresh = () => setFavs(getFavoritos());
@@ -40,11 +40,7 @@ export default function MinhasLeisPage() {
     return map;
   }, [favs]);
 
-  const abrir = (f: LeiFavorita) => {
-    const lei = getLeiByTabela(f.tabela_nome) ?? LEIS_CATALOG.find((l) => l.id === f.leiId);
-    if (!lei) return;
-    navigate(`/legislacao/${tipoToSlug(lei.tipo)}/${leiToSlug(lei)}`);
-  };
+  const abrir = (f: LeiFavorita) => setOpenLei(f);
 
   const isEmpty = favs.length === 0;
 
