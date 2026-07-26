@@ -98,6 +98,9 @@ const Ferramentas = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06 }}
             onClick={() => handleToolClick(tool.id)}
+            data-track="ferramenta_abrir"
+            data-ferramenta-id={tool.id}
+            data-ferramenta-nome={tool.label}
             className="flex items-center gap-4 p-5 min-h-[80px] rounded-xl bg-card border border-border hover:border-primary/40 transition-all group w-full"
           >
             <Icon className="w-6 h-6 text-primary stroke-[1.5] shrink-0" />
