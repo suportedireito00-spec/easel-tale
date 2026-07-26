@@ -89,6 +89,37 @@ export function AdminHojeCards() {
   const [totaisOpen, setTotaisOpen] = useState(false);
   const [totais, setTotais] = useState<any>(null);
   const [totaisLoading, setTotaisLoading] = useState(false);
+  const [provOpen, setProvOpen] = useState<string | null>(null);
+  const [provRows, setProvRows] = useState<Row[]>([]);
+  const [provLoading, setProvLoading] = useState(false);
+
+  const abrirProvider = useCallback(
+    async (p: string) => {
+      setProvOpen(p);
+      setProvLoading(true);
+      setProvRows([]);
+      try {
+        const { data } = await supabase.rpc('admin_lista_provider' as any, {
+          _tipo: open || 'cadastros',
+          _provider: p,
+        });
+        setProvRows(
+          ((data as any[]) || []).map((r) => ({
+            key: r.user_id,
+            userId: r.user_id,
+            title: r.nome || 'Usuário',
+            email: r.email,
+            subtitle: r.email,
+            provider: r.provider,
+            meta: r.criado_em ? new Date(r.criado_em).toLocaleDateString('pt-BR') : '',
+          })),
+        );
+      } finally {
+        setProvLoading(false);
+      }
+    },
+    [open],
+  );
 
   const abrirTotais = useCallback(async () => {
     if (!open) return;
