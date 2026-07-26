@@ -42,7 +42,9 @@ function parseDeepLink(url: string): string | null {
       ? `/${u.hostname}${u.pathname}`.replace(/\/+/g, '/')
       : u.pathname;
 
-    const segments = rawPath.split('/').filter(Boolean);
+    const rawSegments = rawPath.split('/').filter(Boolean);
+    // Smart-link prefix "/ir/..." → trata como se fosse deep link direto
+    const segments = rawSegments[0] === 'ir' ? rawSegments.slice(1) : rawSegments;
     if (segments.length === 0) return '/';
 
     const [type, ...rest] = segments;
