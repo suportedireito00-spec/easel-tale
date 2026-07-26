@@ -1,47 +1,87 @@
-## Diagnóstico
 
-Encontrei a causa raiz do problema em "Meus Artigos":
+# Compartilhar → abrir no app (ou instalar e abrir na página certa)
 
-- O botão de coração dentro do `ArtigoBottomSheet` (a folha que abre quando você toca em um artigo) **só dispara analytics** (`appEvents.favoritarArtigo` → GA/Meta) e chama `onToggleFavorito` da tela pai (`CategoriaLegislacao`), que **só grava um Set em `localStorage`** (`vademecum-favoritos`).
-- A página `/pessoal/artigos` (Meus Artigos) lê da tabela do banco `artigos_favoritos`, que **nunca recebe insert/delete**. Por isso ela mostra "0" e a mensagem de vazio.
-- Existem duas "verdades" para favorito de artigo hoje: o coração dentro do bottom sheet e o coração no card da lista. Nenhum dos dois persiste no Supabase.
-- "Minhas Leis" também é 100% localStorage (`leis_favoritas_v1`). Vou manter localStorage como espelho para funcionar offline, mas passar a persistir também no Supabase quando o usuário estiver logado.
+Objetivo: quando o usuário compartilhar qualquer conteúdo (artigo, lei, notícia, PL, livro, etc.), o link:
 
-Também vou tornar todo o "Meu Espaço" plenamente funcional (rotas, métricas e prefetch já existem — falta o botão de coração na página da lei e a bottom sheet dos artigos favoritos por lei).
+1. Se a pessoa **tem o app** → abre direto na tela do conteúdo (deep link "quente").
+2. Se **não tem** → vai pra Play Store / App Store, ela instala, e na **primeira abertura** o app já pula pra tela do conteúdo (deferred deep link).
 
-## O que vou construir
+Muita coisa já existe (esquema `vacatio://`, `initDeepLinkRouter`, `buildArtigoShareUrl`, `assetlinks.json` template). Faltam três peças: (a) verificação oficial dos App Links / Universal Links, (b) uma página web "smart" que decide entre abrir o app ou mandar pra loja e memoriza o destino, (c) leitura desse destino memorizado na primeira execução.
 
-### 1) Persistência real de favorito de artigo (Supabase)
-- Criar helper único `src/lib/artigosFavoritos.ts` com `toggleArtigoFavorito({ tabela, numero, conteudo })`, `isArtigoFavorito(tabela, numero)`, `subscribe(...)`.
-- Escreve na tabela `artigos_favoritos` (já existe, com RLS por `user_id`), atualiza cache do React Query e emite evento `artigos:favoritos:changed` para as telas reagirem.
-- Se o usuário não estiver logado, cai no localStorage (`artigos_favoritos_v1`) e sincroniza para o Supabase no próximo login.
-- Ligar esse helper no `ArtigoBottomSheet` (coração topo esquerdo) e no card de artigo (`CategoriaLegislacao.toggleFavorito`) — as duas superfícies passam a chamar o mesmo helper.
+## O que muda pro usuário
 
-### 2) Coração para favoritar a Lei (topo direito) — mesma linha do voltar
-- Adicionar botão coração no header da página de lei aberta, alinhado à direita, com estado `isFavorito(lei.leiId)`.
-- Clique → `toggleFavorito` de `@/lib/leisFavoritos` (já existe).
-- Também garantir que o mesmo botão dentro do `SearchOverlay` (já implementado) permanece funcional.
+- Todo botão "compartilhar" do app manda um link único no formato `https://vacatio.com.br/ir/<tipo>/<id>` (ex: `.../ir/lei/cf88/art-5`).
+- Se tem app instalado: Android e iPhone abrem direto no leitor de artigo.
+- Sem app: a página `/ir/...` mostra um preview bonito ("Artigo 5º da CF/88 — abra no Vacatio") e um botão "Instalar" que já leva pra loja carregando um identificador do link.
+- Depois de instalar e abrir, o app recupera esse identificador e navega automaticamente pro artigo.
 
-### 3) Bottom sheet em "Minhas Leis" com artigos favoritos por lei
-- Na página `/pessoal/leis`, ao tocar num cartão de lei favorita: abrir **bottom sheet 90dvh** listando os artigos daquela lei que o usuário favoritou (query filtrada por `tabela_codigo`).
-- Cabeçalho com sigla + nome da lei, botão para "abrir a lei" e cards de cada artigo (número + preview) que navegam para o artigo específico.
-- Se não houver nenhum artigo favorito daquela lei, mostrar estado vazio ("Você ainda não favoritou artigos desta lei").
+## Etapas de implementação
 
-### 4) Meu Espaço — funcionalidade e métricas
-- Auditar cada tile do "Acesso rápido" (Minhas anotações, Meus grifos, Livros, Filmes, Jurisprudências, Temáticas) e garantir que a rota abre e que `PESSOAL_KEYS` está prefetchado.
-- Contadores no perfil (MINHAS LEIS / MEUS ARTIGOS / MINHAS LEITURAS) passam a ler os counts corretos (agora que artigos_favoritos é populado de verdade).
-- Feed "MINHA ATIVIDADE" (`meuEspacoFeed`) já lê `artigos_favoritos` — vai começar a mostrar entradas naturalmente após (1).
-- Analytics: emitir `track('pessoal_open', { area })` no clique de cada tile (já parcialmente instrumentado — vou completar).
+### 1. Verificar App Links (Android)
+- Preencher `public/.well-known/assetlinks.json` com o **SHA-256 real** da chave de release (hoje está `REPLACE_WITH_RELEASE_SHA256_FINGERPRINT`).
+- Publicar o arquivo em `https://vacatio.com.br/.well-known/assetlinks.json` (domínio já apontado).
+- Adicionar no workflow `build-android.yml` um `intent-filter` novo com `android:autoVerify="true"` e `<data android:scheme="https" android:host="vacatio.com.br" />` (hoje só existe pro esquema `vacatio://` e `br.com.vacatio.app://`).
+
+### 2. Universal Links (iOS)
+- Adicionar capability **Associated Domains** no `ios/App/App/App.entitlements` com `applinks:vacatio.com.br`.
+- Publicar `public/.well-known/apple-app-site-association` (JSON sem extensão, servido como `application/json`) com o Team ID + Bundle ID `br.com.vacatio.app` e paths `/ir/*` e `/lei/*`.
+- Sem código extra: o `appUrlOpen` do Capacitor já entrega essas URLs no `initDeepLinkRouter`.
+
+### 3. Página web "smart link" `/ir/*`
+- Nova rota React `src/pages/SmartLink.tsx` casada com `/ir/*` no `src/App.tsx`.
+- Faz três coisas em ordem:
+  1. Tenta abrir `vacatio://<mesmo path>` num iframe invisível — se o app estiver instalado, o SO intercepta antes da página web carregar completamente.
+  2. Se `navigator.userAgent` é Android, redireciona pra Play Store com o parâmetro `referrer=vacatio_link%3D<path>` (Play Install Referrer API).
+  3. Se é iOS, redireciona pra App Store; como iOS não tem Install Referrer, gravamos o path num endpoint edge `smart-link-claim` associado a um fingerprint leve (IP + user-agent + timezone). Ao primeiro `appUrlOpen` sem path o app consulta esse endpoint com o mesmo fingerprint pra recuperar o destino (janela curta, 10 min).
+- Mostra card de preview com título/descrição do conteúdo (busca no banco via edge function pública `smart-link-meta`) e OG tags corretas pro WhatsApp/Twitter renderizarem bem.
+
+### 4. Recuperar destino pós-instalação (Android)
+- Adicionar plugin `@capacitor-community/play-install-referrer` no `capacitor.config.ts` (não precisa código nativo custom).
+- No boot do app (dentro de `initDeepLinkRouter`), se `Capacitor.getPlatform() === 'android'` e ainda não houve `appUrlOpen`, ler o referrer, extrair `vacatio_link=<path>` e navegar.
+- Marcar num `localStorage` que já consumimos, pra não repetir no próximo abrir.
+
+### 5. Recuperar destino pós-instalação (iOS)
+- Nova edge function `smart-link-claim`:
+  - `POST /claim` → grava `{ fingerprint_hash, target_path, created_at }` (TTL 10 min).
+  - `POST /consume` → devolve o `target_path` mais recente pro mesmo fingerprint e apaga.
+- No boot iOS, se não houve `appUrlOpen`, chamamos `consume` com o fingerprint atual. Se voltar um path, navegamos.
+
+### 6. Unificar botões de compartilhar
+- Trocar todos os `navigator.share({ url: ... })` espalhados (`ShareSheet.tsx`, `ShareButtons.tsx`, `LivroDetailSheet.tsx`, `Noticias.tsx`, `LocaisJuridicos.tsx`, `ObraDetailSheet.tsx`, `CompartilharFrase.tsx`, `ChatArtifacts.tsx`, `ResumoJuridicoReaderSheet.tsx`) pra usarem um novo helper `buildSmartLink(tipo, params)` em `src/lib/nativeDeepLinks.ts`.
+- O helper devolve sempre `https://vacatio.com.br/ir/<tipo>/...` — mesmo formato pro Android, iOS e web.
+
+### 7. Ajustar o `parseDeepLink`
+- Adicionar suporte a paths que começam com `/ir/` (basta remover o prefixo antes do switch atual).
+- Suportar `livro/<id>`, `noticia/<id>`, `radar/pl/<id>`, `resumo/<id>`, `frase/<id>` pra cobrir todos os shares que já existem.
 
 ## Detalhes técnicos
 
-- Tabela usada: `public.artigos_favoritos(user_id, tabela_codigo, numero_artigo, conteudo_preview, artigo_id?)` — já existente, com RLS. **Não precisa migration.**
-- Invalidação: após toggle, `queryClient.invalidateQueries({ queryKey: PESSOAL_KEYS.artigos(uid) })` + evento window para telas não-Query.
-- Bottom sheet: reutilizar `Sheet` do shadcn `side="bottom"` com `h-[90dvh]`, mesmo padrão do `ArtigoBottomSheet`.
-- Backfill: no primeiro carregamento após deploy, se houver dados no localStorage antigo (`vademecum-favoritos`) e o usuário estiver logado, upsert em massa no Supabase e limpar a chave antiga.
+- **Domínio**: `vacatio.com.br` (já usado no `assetlinks.json` e no `parseDeepLink`).
+- **Formato de link canônico**:
+  - Artigo: `/ir/lei/{slug}/art-{numero}`
+  - Lei inteira: `/ir/lei/{slug}`
+  - Notícia: `/ir/noticia/{id}`
+  - Livro: `/ir/livro/{id}`
+  - PL: `/ir/radar/pl/{id}`
+  - Frase da biblioteca: `/ir/frase/{id}`
+- **assetlinks.json**: precisa do SHA-256 da chave de release usada no `build-android.yml` (pego com `keytool -list -v -keystore release.keystore`).
+- **AASA (iOS)**:
+  ```json
+  { "applinks": { "details": [{ "appIDs": ["TEAMID.br.com.vacatio.app"], "components": [{ "/": "/ir/*" }, { "/": "/lei/*" }] }] } }
+  ```
+- **Fingerprint iOS** (deferred): hash SHA-256 de `ip + user_agent_family + tz + accept_language`, guardado no Supabase por 10 min. Não é 100% preciso (Apple limita) — taxa de acerto típica ~85%. Sem esse fallback iOS não tem jeito melhor sem SDK pago (Branch/Adjust/Firebase Dynamic Links foi descontinuado).
+- **OG tags**: renderizar server-side na função edge `smart-link-meta` (Deno) que devolve HTML mínimo com `<meta property="og:title">` etc., pra WhatsApp mostrar preview antes de baixar o app.
+- **Sem regressão**: os deep links atuais (`vacatio://lei/...`, `https://vacatio.com.br/lei/...` diretos) continuam funcionando; `/ir/*` é uma camada nova por cima.
 
-## Fora de escopo
+## Fora do escopo
 
-- Não vou mexer no design system, cores ou tipografia.
-- Não vou alterar o fluxo do bottom sheet do artigo em si (só o handler do coração).
-- Não vou criar tabelas novas nem migrations.
+- Não vou trocar Firebase Dynamic Links (descontinuado) por Branch/Adjust — custo e complexidade fora do pedido.
+- Não vou fazer share de imagem/vídeo renderizado — só do link.
+- Não vou mexer no fluxo OAuth (`auth-callback`), que continua isolado.
+
+## Passo-a-passo que você (usuário) precisa fazer
+
+1. **SHA-256 da release**: rodar `keytool` na sua chave e me mandar — coloco no `assetlinks.json`.
+2. **Team ID Apple**: pego no Apple Developer → Membership. Preciso pra montar o AASA.
+3. **Publicar o domínio** `vacatio.com.br` apontando pro app publicado (se ainda não está).
+4. Depois de eu implementar, rodar `npx cap sync` e gerar novo build Android/iOS.
