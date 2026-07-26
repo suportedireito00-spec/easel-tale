@@ -509,6 +509,8 @@ export default function Assinatura() {
                   onClick={() => setTab(plan.id)}
                   role="button"
                   tabIndex={0}
+                  data-track="plan_card_viewed"
+                  data-plano={plan.id}
                   className={`snap-start shrink-0 w-[85%] sm:w-auto sm:shrink relative rounded-2xl p-5 flex flex-col text-left transition-all cursor-pointer overflow-hidden ${
                     isActive
                       ? 'bg-card border-2 border-primary'
