@@ -23,22 +23,22 @@ import authCourtroomScene from '@/assets/auth-courtroom-scene.webp';
 import direitoDoTrabalhoImg from '@/assets/biblioteca/areas/direito-do-trabalho.jpg';
 import brasaoRepublica from '@/assets/brasao-republica.webp';
 
-import cargoPP from '@/assets/cargos/policia-penal-rs.png.asset.json';
-import cargoDF from '@/assets/cargos/policia-civil-df.png.asset.json';
-import cargoMA from '@/assets/cargos/policia-civil-ma.png.asset.json';
-import cargoCE from '@/assets/cargos/policia-civil-ce.png.asset.json';
-import cargoPF from '@/assets/cargos/policia-federal.png.asset.json';
-import cargoPRF from '@/assets/cargos/policia-rodoviaria-federal.png.asset.json';
-import cargoPMSP from '@/assets/cargos/policia-militar-sp.png.asset.json';
+import cargoPP from '@/assets/cargos/policia-penal-rs.webp';
+import cargoDF from '@/assets/cargos/policia-civil-df.webp';
+import cargoMA from '@/assets/cargos/policia-civil-ma.webp';
+import cargoCE from '@/assets/cargos/policia-civil-ce.webp';
+import cargoPF from '@/assets/cargos/policia-federal.webp';
+import cargoPRF from '@/assets/cargos/policia-rodoviaria-federal.webp';
+import cargoPMSP from '@/assets/cargos/policia-militar-sp.webp';
 
 const CARGO_BADGES: { url: string; label: string }[] = [
-  { url: srcOf(cargoPF), label: 'Polícia Federal' },
-  { url: srcOf(cargoPRF), label: 'Polícia Rodoviária Federal' },
-  { url: srcOf(cargoDF), label: 'Polícia Civil DF' },
-  { url: srcOf(cargoPMSP), label: 'Polícia Militar SP' },
-  { url: srcOf(cargoCE), label: 'Polícia Civil CE' },
-  { url: srcOf(cargoMA), label: 'Polícia Civil MA' },
-  { url: srcOf(cargoPP), label: 'Polícia Penal RS' },
+  { url: cargoPF, label: 'Polícia Federal' },
+  { url: cargoPRF, label: 'Polícia Rodoviária Federal' },
+  { url: cargoDF, label: 'Polícia Civil DF' },
+  { url: cargoPMSP, label: 'Polícia Militar SP' },
+  { url: cargoCE, label: 'Polícia Civil CE' },
+  { url: cargoMA, label: 'Polícia Civil MA' },
+  { url: cargoPP, label: 'Polícia Penal RS' },
 ];
 
 const logo = pickAsset(logoBundled, logoAsset.url);
