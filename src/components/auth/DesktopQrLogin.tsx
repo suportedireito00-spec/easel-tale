@@ -17,6 +17,8 @@ const APP_LINK_BASE = 'https://simply-awesome-calc-80.lovable.app';
 
 type Status = 'loading' | 'pending' | 'claimed' | 'expired' | 'error';
 
+const QR_TTL_SECONDS = 60;
+
 async function callFn(path: string, body?: unknown, auth?: string) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${path}`, {
     method: 'POST',
@@ -65,6 +67,9 @@ const DesktopQrLogin = () => {
     try {
       const r = await callFn('desktop-link', { action: 'create', desktop_id: getDesktopId() });
       if (!r?.token) throw new Error(r?.error || 'sem_token');
+      const ttlSeconds = Number.isFinite(Number(r.expires_in_seconds))
+        ? Math.max(1, Number(r.expires_in_seconds))
+        : QR_TTL_SECONDS;
       const url = `${APP_LINK_BASE}/desktop-link/${r.token}`;
       const dataUrl = await QRCode.toDataURL(url, {
         margin: 1,
@@ -74,7 +79,11 @@ const DesktopQrLogin = () => {
       });
       setToken(r.token);
       setQrDataUrl(dataUrl);
-      setExpiresAt(new Date(r.expires_at).getTime());
+      // Usa TTL contado a partir do recebimento no navegador. Comparar com
+      // expires_at absoluto fazia o QR expirar instantaneamente quando o
+      // relógio do desktop estava adiantado em relação ao servidor.
+      setExpiresAt(Date.now() + ttlSeconds * 1000);
+      setRemaining(Math.ceil(ttlSeconds));
       setStatus('pending');
     } catch (e) {
       console.error('[DesktopQrLogin] generate failed', e);
