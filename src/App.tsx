@@ -697,6 +697,7 @@ const App = () => (
               
               <GeofencePresenceBanner />
               <ReminderInAppBanner />
+              <HorusTakeoverNoticeDialog />
               {/* <IntroOverlay /> — desativado por preferência (splash estático) */}
               <RecordingProvider>
                 <AnimatedRoutes />
