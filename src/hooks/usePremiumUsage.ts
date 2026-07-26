@@ -9,9 +9,7 @@ import { isAdminEmail } from '@/lib/adminEmails';
 
 // Mapa das antigas keys → novas feature_keys do sistema editável
 const KEY_MAP: Record<string, string> = {
-  questoes: 'questoes',
   narracao: 'narracao',
-  explicacao: 'ia_juridica',
 };
 
 interface LimitRow { feature_key: string; limit_value: number; period: string; enabled: boolean }
