@@ -103,6 +103,17 @@ type Category = {
 
 const CATEGORIES: Category[] = [
   {
+    id: 'exclusivas-admin',
+    title: 'Funções exclusivas (Admin)',
+    desc: 'Ferramentas em testes, visíveis apenas para admins',
+    icon: Crown,
+    items: [
+      { id: 'admin-newsletter', label: 'Newsletter', icon: Mail, desc: 'Receba um resumo jurídico diário no e-mail', route: '/newsletter' },
+      { id: 'admin-peticao-inicial', label: 'Petição Inicial', icon: FileSignature, desc: 'Gere petições com IA e jurisprudência real do STF/STJ', route: '/ferramentas/peticao-inicial' },
+      { id: 'admin-gravar-aula', label: 'Gravar aula', icon: Mic, desc: 'Grave aulas longas com resumo automático por IA', route: '/anotacoes/audio' },
+    ],
+  },
+  {
     id: 'push',
     title: 'Notificações Push',
     desc: 'Campanhas, agendamento e métricas',
