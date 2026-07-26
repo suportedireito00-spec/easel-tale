@@ -8,7 +8,7 @@ import { useIsDesktop } from '@/hooks/use-desktop';
 import { newsImg } from '@/lib/cdnImg';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Noticia } from '@/services/noticiasService';
+import { type Noticia, fetchNoticiaConteudo } from '@/services/noticiasService';
 import NoticiaComentarios from '@/components/vademecum/NoticiaComentarios';
 import ShareSheet from './ShareSheet';
 import { useFavoritoNoticia } from '@/hooks/useNoticiaTracking';
@@ -35,6 +35,8 @@ export default function NoticiaViewerSheet({ noticia, onClose }: Props) {
   const [shareOpen, setShareOpen] = useState(false);
   const [fontSize, setFontSize] = useState(17);
   const [fontOpen, setFontOpen] = useState(false);
+  const [fullMd, setFullMd] = useState<string | null>(null);
+  const [loadingMd, setLoadingMd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const incFont = () => setFontSize((s) => Math.min(24, s + 2));
   const decFont = () => setFontSize((s) => Math.max(12, s - 2));
@@ -44,6 +46,25 @@ export default function NoticiaViewerSheet({ noticia, onClose }: Props) {
     if (noticia && scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }
+    setFullMd(noticia?.conteudo_md ?? null);
+  }, [noticia?.id]);
+
+  // Carrega conteúdo completo sob demanda quando o sheet abre sem conteudo_md
+  useEffect(() => {
+    if (!noticia) return;
+    if (noticia.conteudo_md && noticia.conteudo_md.length > 0) {
+      setFullMd(noticia.conteudo_md);
+      return;
+    }
+    let cancelled = false;
+    setLoadingMd(true);
+    fetchNoticiaConteudo(noticia.id)
+      .then((md) => {
+        if (cancelled) return;
+        if (md) setFullMd(md);
+      })
+      .finally(() => { if (!cancelled) setLoadingMd(false); });
+    return () => { cancelled = true; };
   }, [noticia?.id]);
 
   // Trava scroll do fundo enquanto o painel estiver aberto
@@ -240,8 +261,11 @@ export default function NoticiaViewerSheet({ noticia, onClose }: Props) {
                   "
                 >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {cleanMd(noticia.conteudo_md || noticia.conteudo || noticia.resumo || 'Conteúdo não disponível.')}
+                    {cleanMd(fullMd || noticia.conteudo_md || noticia.conteudo || noticia.resumo || 'Conteúdo não disponível.')}
                   </ReactMarkdown>
+                  {loadingMd && !fullMd && (
+                    <p className="text-xs text-muted-foreground italic mt-3">Carregando conteúdo completo…</p>
+                  )}
                 </article>
 
                 <div className="h-24" />
