@@ -3,6 +3,8 @@ import { Radio, UserPlus, Sparkles, Loader2, Mail } from 'lucide-react';
 import { SiGoogle, SiApple } from 'react-icons/si';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
+import { UserDossieSheet } from './UserDossieSheet';
+import { rotaParaFuncao } from '@/lib/rotaFuncoes';
 
 type CardId = 'online' | 'cadastros' | 'trial';
 
@@ -12,6 +14,7 @@ interface Row {
   subtitle?: string | null;
   meta?: string | null;
   userId?: string | null;
+  email?: string | null;
   provider?: string | null;
 }
 
@@ -46,6 +49,7 @@ export function AdminHojeCards() {
   const [open, setOpen] = useState<CardId | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dossie, setDossie] = useState<Row | null>(null);
 
   const load = useCallback(async () => {
     const since = startOfToday();
@@ -90,7 +94,8 @@ export function AdminHojeCards() {
               key: r.user_id,
               userId: r.user_id,
               title: r.display_name || r.email || 'Usuário',
-              subtitle: r.current_route || null,
+              email: r.email || null,
+              subtitle: rotaParaFuncao(r.current_route).label,
               meta: hora(r.last_seen_at),
             })),
         );
@@ -106,6 +111,7 @@ export function AdminHojeCards() {
             key: r.id,
             userId: r.id,
             title: r.full_name || r.email || 'Usuário',
+            email: r.email || null,
             subtitle: r.email || null,
             meta: hora(r.created_at),
           })),
@@ -186,7 +192,12 @@ export function AdminHojeCards() {
             ) : (
               <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
                 {rows.map((r) => (
-                  <div key={r.key} className="flex items-center gap-3 px-4 py-3">
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => r.userId && setDossie(r)}
+                    className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
                       {r.subtitle && (
@@ -195,13 +206,21 @@ export function AdminHojeCards() {
                     </div>
                     <ProviderTag provider={r.provider} />
                     <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
         </SheetContent>
       </Sheet>
+
+      <UserDossieSheet
+        userId={dossie?.userId || null}
+        nome={dossie?.title}
+        email={dossie?.email}
+        provider={dossie?.provider}
+        onClose={() => setDossie(null)}
+      />
     </>
   );
 }
