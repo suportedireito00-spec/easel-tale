@@ -7,8 +7,6 @@ import { Loader2, Download, ShieldAlert, KeyRound, Copy, Github, CheckCircle2, X
 import { PageHeader } from '@/components/vademecum/PageHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import workflowSource from '@/generated/workflows/build-android.yml?raw';
-import workflowSourceIos from '@/generated/workflows/build-ios.yml?raw';
 import { AdminGithubTabs } from '@/components/admin/AdminGithubTabs';
 import { useSharedGithubRepo } from '@/hooks/useSharedGithubRepo';
 
@@ -51,6 +49,31 @@ const SECRET_DETAILS: Record<string, string> = {
 
 type Platform = 'android' | 'apple';
 
+const WORKFLOW_FILES: Record<Platform, string> = {
+  android: 'build-android.yml',
+  apple: 'build-ios.yml',
+};
+
+async function loadWorkflowSource(platform: Platform): Promise<string | undefined> {
+  const file = WORKFLOW_FILES[platform];
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const url = `${baseUrl.replace(/\/$/, '')}/workflows/${file}`;
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const trimmed = text.trimStart();
+    if (!trimmed || trimmed.startsWith('<!doctype') || trimmed.startsWith('<html')) {
+      throw new Error('workflow inválido');
+    }
+    return text;
+  } catch (error) {
+    console.warn(`[admin-secrets] Workflow ${file} não pôde ser carregado`, error);
+    return undefined;
+  }
+}
+
 export default function AdminSecretsDownload() {
   const navigate = useNavigate();
   const [platform, setPlatform] = useState<Platform>('android');
@@ -84,13 +107,17 @@ export default function AdminSecretsDownload() {
     setSyncing(true);
     setSyncResult(null);
     try {
+      const selectedWorkflowSource = await loadWorkflowSource(platform);
+      if (!selectedWorkflowSource) {
+        toast.warning('Workflow não encontrado no build; vou sincronizar os secrets sem atualizar o YAML.');
+      }
       const { data, error } = await supabase.functions.invoke('sync-github-secrets', {
         body: {
           password,
           repo: normalized,
           platform,
-          workflowSource: platform === 'android' ? workflowSource : undefined,
-          workflowSourceIos: platform === 'apple' ? workflowSourceIos : undefined,
+          workflowSource: platform === 'android' ? selectedWorkflowSource : undefined,
+          workflowSourceIos: platform === 'apple' ? selectedWorkflowSource : undefined,
         },
       });
       if (error) throw new Error(error.message || 'Falha na sincronização');

@@ -2,9 +2,9 @@
 /**
  * Prebuild helper:
  *   1. Copia os workflows do GitHub Actions (.github/workflows/*.yml) para
- *      src/generated/workflows/ para que possam ser importados com `?raw`
- *      pelo Vite/Rollup (o Rollup não resolve caminhos fora de `src/` em
- *      builds fora do preview da Lovable, como Vercel).
+ *      src/generated/workflows/ e public/workflows/. A cópia pública evita que
+ *      o build da Vercel dependa de imports `?raw` apontando para `.github/`,
+ *      que fica fora do grafo seguro do Vite/Rollup em builds remotos.
  *   2. Copia o binário sql-wasm.wasm do pacote `sql.js` para public/assets/
  *      onde o web component `jeep-sqlite` procura por padrão. Sem isso, o
  *      SPA fallback devolve index.html no lugar do .wasm e o navegador
@@ -33,22 +33,21 @@ async function copyIfExists(from, to, label) {
 async function copyWorkflows() {
   const files = ['build-android.yml', 'build-ios.yml'];
   for (const f of files) {
-    await copyIfExists(
-      path.join(root, '.github/workflows', f),
-      path.join(root, 'src/generated/workflows', f),
-      'workflow',
-    );
+    const source = path.join(root, '.github/workflows', f);
+    await copyIfExists(source, path.join(root, 'src/generated/workflows', f), 'workflow-src');
+    await copyIfExists(source, path.join(root, 'public/workflows', f), 'workflow-public');
   }
-  // Placeholder para o caso de o build rodar sem .github (workspace enxuto).
-  const dir = path.join(root, 'src/generated/workflows');
-  await fs.mkdir(dir, { recursive: true });
-  for (const f of ['build-android.yml', 'build-ios.yml']) {
-    const p = path.join(dir, f);
-    try {
-      await fs.access(p);
-    } catch {
-      await fs.writeFile(p, `# ${f} indisponível neste build.\n`, 'utf8');
-      console.warn(`[prebuild] workflow: placeholder criado em src/generated/workflows/${f}`);
+  // Placeholders para o caso de o build rodar sem .github (workspace enxuto).
+  for (const dir of [path.join(root, 'src/generated/workflows'), path.join(root, 'public/workflows')]) {
+    await fs.mkdir(dir, { recursive: true });
+    for (const f of files) {
+      const p = path.join(dir, f);
+      try {
+        await fs.access(p);
+      } catch {
+        await fs.writeFile(p, `# ${f} indisponível neste build.\n`, 'utf8');
+        console.warn(`[prebuild] workflow: placeholder criado em ${path.relative(root, p)}`);
+      }
     }
   }
 }
