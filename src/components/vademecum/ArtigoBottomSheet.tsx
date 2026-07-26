@@ -3553,7 +3553,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
           </div>
           <div className="fixed right-4 top-1/2 -translate-y-1/2 z-[10000] flex flex-col gap-2 rounded-2xl bg-card/95 backdrop-blur-md border border-border p-2 shadow-xl shadow-black/40">
             <button
-              onClick={() => { if (!isPremium) { openPremiumGate('anotacoes', 'Anotações pessoais em cada artigo. Assine para desbloquear.'); return; } setShowAnotacoesSheet(true); }}
+              onClick={() => gateFeature('lei_anotacao', 'anotacoes', 'Anotações', () => setShowAnotacoesSheet(true))}
               className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-foreground hover:bg-secondary transition-colors"
               title="Anotações"
               aria-label="Anotações"
