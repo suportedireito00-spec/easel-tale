@@ -550,6 +550,8 @@ export default function Assinatura() {
                   <Button
                     onClick={(e) => { e.stopPropagation(); setTab(plan.id); startPurchase(plan.id); }}
                     disabled={playLoading}
+                    data-track="plan_cta_click"
+                    data-plano={plan.id}
                     className="btn-attention-shine mt-auto w-full h-14 rounded-xl bg-primary text-primary-foreground font-display font-extrabold text-base sm:text-lg tracking-wide hover:brightness-95 transition-all"
                   >
                     {playLoading && isActive ? (
