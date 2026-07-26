@@ -909,17 +909,22 @@ function validarERepararSumario(sumario: SumarioCanonico, pages: string[], sumar
   // Fallback: se o AI colapsou tudo em poucos capítulos mas o OCR extraiu um sumário rico,
   // reconstrói os capítulos a partir do sumário extraído (títulos + páginas reais).
   const preliminaresRe = /^(sum[áa]rio|[íi]ndice|apresenta[cç][ãa]o|pref[áa]cio|dedicat[óo]ria|agradecimentos|ficha catalogr[áa]fica|col[oó]f[ãa]o|bibliografia|nota do (autor|editor)|cap[ií]tulo\s*$|em[eé]diato editores)/i;
+  const tocLeaderRe = /\.{2,}\s*\d{1,4}\s*$/;               // "Título .......... 39"
+  const pageSuffixRe = /\s\d{1,4}\s*$/;                       // "11. ACORDO DE ACIONISTAS 39"
   const candidatosExtraidos = (sumarioExtraido || [])
     .filter((s: any) => s && typeof s.page === 'number' && typeof s.titulo === 'string')
-    .filter((s: any) => !preliminaresRe.test(String(s.titulo).trim()))
-    .filter((s: any) => String(s.titulo).trim().length >= 3);
+    .map((s: any) => ({ ...s, titulo: String(s.titulo).replace(/\*+/g, '').trim() }))
+    .filter((s: any) => !preliminaresRe.test(s.titulo))
+    .filter((s: any) => !tocLeaderRe.test(s.titulo))
+    .filter((s: any) => !(pageSuffixRe.test(s.titulo) && s.titulo.length < 120))
+    .filter((s: any) => s.titulo.length >= 3);
   if (candidatosExtraidos.length >= 4 && capitulos.length < Math.max(3, Math.floor(candidatosExtraidos.length * 0.4))) {
     console.warn('[refino] AI devolveu poucos capítulos vs sumário extraído — usando fallback', {
       ai: capitulos.length, extraido: candidatosExtraidos.length,
     });
     capitulos = candidatosExtraidos.map((s: any, i: number) => ({
       numero: i + 1,
-      titulo: String(s.titulo).replace(/\*+/g, '').trim(),
+      titulo: s.titulo,
       pagina_inicio: clampNum(Number(s.page) || 1, 1, totalPaginas),
     }));
   }
