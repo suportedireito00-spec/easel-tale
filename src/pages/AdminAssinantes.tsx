@@ -137,16 +137,18 @@ const AdminAssinantes = () => {
     });
   }, [data, q, statusFilter]);
 
-  const reportingError = data?.reporting?.error || data?.reporting?.subs?.body?.error;
-  const reportingIs403 =
-    data?.reporting?.subs?.status === 403 ||
-    (typeof reportingError === 'object' && (reportingError as any)?.code === 403);
+  const sync = data?.sync ?? null;
+  const syncErrors = sync?.errors ?? [];
+  const syncFatal = sync?.error ?? null;
+  const sync403 = syncErrors.some((e) => e.status === 401 || e.status === 403);
 
-  const activeToday = data ? activeSubscribersToday(data.reporting) : 0;
-  const newLast7 = data ? sumMetricLastN(data.reporting, 'newSubscribersCount', 7) : 0;
-  const canceledLast7 = data ? sumMetricLastN(data.reporting, 'canceledSubscribersCount', 7) : 0;
-  const renewals30 = data ? sumMetric(data.reporting, 'subscriptionRenewalsCount') : 0;
-  const timeline = useMemo(() => (data ? buildTimeline(data.reporting) : []), [data]);
+  const metrics = data?.local.metrics ?? EMPTY_METRICS;
+  const activeToday = metrics.ativosHoje;
+  const newLast7 = metrics.novos7;
+  const canceledLast7 = metrics.cancelados7;
+  const renewals30 = metrics.renovacoes30;
+  const timeline = metrics.timeline;
+
 
   // Receita estimada com base nos assinantes ativos NÃO-teste e preços vigentes
   const revenue = useMemo(() => {
