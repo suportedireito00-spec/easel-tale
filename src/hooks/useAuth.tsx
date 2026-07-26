@@ -245,35 +245,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const platform = Capacitor.getPlatform();
 
     if (platform === 'ios') {
+      // iOS: usa o fluxo OAuth do Supabase via Browser (Safari View Controller).
+      // O SocialLogin/Credential Manager foi removido pra não pedir biometria.
       try {
-        const { SocialLogin } = await import('@capgo/capacitor-social-login');
-        if (!socialLoginInit) {
-          socialLoginInit = SocialLogin.initialize({
-            google: { webClientId: GOOGLE_WEB_CLIENT_ID },
-            apple: { clientId: 'br.com.vacatio.app' },
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              socialLoginInit = null;
-              throw error;
-            });
-        }
-        await socialLoginInit;
-        const res: any = await SocialLogin.login({
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'apple',
-          options: { scopes: ['email', 'name'] },
+          options: {
+            redirectTo: 'br.com.vacatio.app://auth-callback',
+            skipBrowserRedirect: true,
+          },
         });
-        const idToken = res?.result?.idToken ?? res?.result?.identityToken;
-        if (!idToken) {
-          return { error: new Error('Apple não retornou o token de identidade.') };
-        }
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: 'apple',
-          token: idToken,
+        if (error) return { error: error as Error };
+        if (!data?.url) return { error: new Error('Supabase não retornou URL do OAuth Apple.') };
+        await Browser.open({
+          url: data.url,
+          presentationStyle: 'popover',
+          windowName: '_self',
         });
-        return { error: error as Error | null };
+        return { error: null };
       } catch (e: any) {
-        console.error('[SocialLogin] Apple sign-in failed', e);
+        console.error('[Apple/iOS] OAuth failed', e);
         return { error: new Error(e?.message || 'Não consegui entrar com a Apple.') };
       }
     }
