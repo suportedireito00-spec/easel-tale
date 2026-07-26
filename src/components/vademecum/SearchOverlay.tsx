@@ -174,6 +174,13 @@ const SearchOverlay = ({ open, onClose, onSelectLei }: SearchOverlayProps) => {
 
   const emitSelect = (lei: typeof LEIS_CATALOG[number], artigoNumero?: string) => {
     bumpLeiSearch(lei.id);
+    track('search_lei_selecionada', {
+      lei_id: lei.id,
+      lei_nome: lei.nome,
+      modo: mode,
+      artigo_numero: artigoNumero,
+      query: query.trim().slice(0, 80),
+    });
     onSelectLei({
       tipo: lei.tipo,
       leiId: lei.id,
