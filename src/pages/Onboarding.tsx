@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import CadastroOnboardingOverlay, {
   type CadastroResult,
 } from '@/components/onboarding/CadastroOnboardingOverlay';
+import NotificacoesPermissaoStep from '@/components/onboarding/NotificacoesPermissaoStep';
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [pedirNotificacoes, setPedirNotificacoes] = useState(false);
 
   const finalizar = async (r: CadastroResult) => {
     if (!user) {
@@ -36,19 +37,8 @@ const Onboarding = () => {
         .eq('id', user.id);
       if (error) throw error;
 
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const { PushNotifications } = await import('@capacitor/push-notifications');
-          const { LocalNotifications } = await import('@capacitor/local-notifications');
-          await LocalNotifications.requestPermissions();
-          const p = await PushNotifications.requestPermissions();
-          if (p.receive === 'granted') await PushNotifications.register();
-        } catch (e) {
-          console.warn('Permissão notificações', e);
-        }
-      }
-      toast.success('Bora estudar!');
-      navigate('/', { replace: true });
+      // Passo contextualizado de permissão de notificações (nativo e PWA)
+      setPedirNotificacoes(true);
     } catch (err: any) {
       toast.error(err.message || 'Não consegui salvar seu perfil. Tenta de novo.');
       navigate('/', { replace: true });
@@ -57,11 +47,19 @@ const Onboarding = () => {
     }
   };
 
+  const concluirNotificacoes = (granted: boolean) => {
+    setPedirNotificacoes(false);
+    toast.success(granted ? 'Notificações ativadas. Bora estudar!' : 'Bora estudar!');
+    navigate('/', { replace: true });
+  };
+
   return (
     <main className="min-h-dvh bg-black">
       <CadastroOnboardingOverlay open onFinished={finalizar} />
+      {pedirNotificacoes && <NotificacoesPermissaoStep onDone={concluirNotificacoes} />}
     </main>
   );
 };
 
 export default Onboarding;
+
