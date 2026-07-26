@@ -658,17 +658,16 @@ jobs:
             cat > ios/App/App/AppDelegate.swift <<'SWIFT'
           import UIKit
           import Capacitor
-          import FirebaseCore
-          import FirebaseAnalytics
 
+          // Sem Facebook/Firebase importados aqui: com Capacitor+SPM esses módulos
+          // não são visíveis no target App. O @capacitor-firebase/analytics já faz
+          // FirebaseApp.configure() automaticamente a partir do GoogleService-Info.plist.
           @UIApplicationMain
           class AppDelegate: UIResponder, UIApplicationDelegate {
 
               var window: UIWindow?
 
               func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                  FirebaseApp.configure()
-                  Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
                   return true
               }
 
@@ -681,7 +680,8 @@ jobs:
               }
           }
           SWIFT
-            echo "Overwrote AppDelegate.swift with Firebase Analytics init (sem Facebook SDK)"
+            echo "Overwrote AppDelegate.swift (Capacitor puro, sem Facebook/Firebase imports)"
+
           fi
 
 
