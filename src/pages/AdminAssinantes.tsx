@@ -342,8 +342,9 @@ const AdminAssinantes = () => {
         {/* Métricas agregadas */}
         <section className="space-y-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-            Últimos 30 dias (Play Reporting)
+            Últimos 30 dias (sincronizado com o Google Play)
           </h2>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <StatCard icon={Users} label="Ativos hoje" value={loading ? '…' : activeToday} tint="text-emerald-500" />
             <StatCard icon={TrendingUp} label="Novos 7d" value={loading ? '…' : newLast7} tint="text-blue-500" />
