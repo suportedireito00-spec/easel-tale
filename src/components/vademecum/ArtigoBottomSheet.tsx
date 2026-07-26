@@ -2370,9 +2370,10 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
         </AnimatePresence>
 
         <Tabs value={activeTab} onValueChange={(v) => {
-          if (!isPremium && (v === 'explicacao' || v === 'exemplo' || v === 'termos')) {
-            if (!canUse('explicacao')) { openPremiumGate('explicacao', 'Você atingiu o limite de 3 explicações/mês. Assine para desbloquear.'); return; }
-            registerUsage('explicacao', `${tabelaNome}_${artigo?.numero}`);
+          if (!isPremium && (v === 'explicacao' || v === 'exemplo')) {
+            const label = v === 'explicacao' ? 'Explicação' : 'Exemplo';
+            gateFeature(v, v as PremiumFeatureKey, label, () => setActiveTab(v));
+            return;
           }
           setActiveTab(v);
         }} className="flex flex-col">
