@@ -261,8 +261,11 @@ export default function NoticiaViewerSheet({ noticia, onClose }: Props) {
                   "
                 >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {cleanMd(noticia.conteudo_md || noticia.conteudo || noticia.resumo || 'Conteúdo não disponível.')}
+                    {cleanMd(fullMd || noticia.conteudo_md || noticia.conteudo || noticia.resumo || 'Conteúdo não disponível.')}
                   </ReactMarkdown>
+                  {loadingMd && !fullMd && (
+                    <p className="text-xs text-muted-foreground italic mt-3">Carregando conteúdo completo…</p>
+                  )}
                 </article>
 
                 <div className="h-24" />
