@@ -58,66 +58,153 @@ async function getGoogleAccessToken(): Promise<string> {
   return tokenCache.token;
 }
 
-function dateOnly(d: Date) {
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
-}
+// ============================================================================
+// IMPORTANTE: a Google Play Developer Reporting API NÃO expõe métricas de
+// assinatura (não existe "subscriptionMetricSet" nem "installsMetricSet").
+// Ela só cobre "vitals" (crash rate, ANR, erros) e anomalias.
+// Métricas agregadas de assinantes/cancelamentos só existem:
+//   - no Play Console (UI) e nos relatórios CSV do bucket do Cloud Storage;
+//   - por compra individual, via androidpublisher purchases.subscriptionsv2.get.
+// Por isso aqui: sincronizamos cada compra com o androidpublisher e agregamos
+// as métricas a partir do nosso próprio banco (alimentado por RTDN + validação).
+// ============================================================================
 
-async function queryMetricSet(
-  accessToken: string,
-  metricSet: 'subscriptionMetricSet' | 'installsMetricSet',
-  metrics: string[],
-  dimensions: string[],
-  days: number,
-) {
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+// Consulta o estado atual de UMA assinatura no Google Play.
+async function fetchPurchaseState(accessToken: string, purchaseToken: string) {
   const url =
-    `https://playdeveloperreporting.googleapis.com/v1beta1/apps/${encodeURIComponent(PACKAGE_NAME)}/${metricSet}:query`;
-  const body = {
-    timelineSpec: {
-      aggregationPeriod: 'DAILY',
-      startTime: { ...dateOnly(start), timeZone: { id: 'UTC' } },
-      endTime: { ...dateOnly(end), timeZone: { id: 'UTC' } },
-    },
-    dimensions,
-    metrics,
-  };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  return { ok: res.ok, status: res.status, body: json };
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}` +
+    `/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const body = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, body };
 }
 
-async function fetchReporting() {
-  const cacheKey = 'all';
-  const hit = metricsCache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
+type SyncResult = {
+  checked: number;
+  updated: number;
+  errors: { status: number; message: string }[];
+  lastSyncAt: string;
+};
+
+// Sincroniza até `max` assinaturas com o Google Play (estado real, refunds, cancelamentos).
+async function syncWithGoogle(
+  supabase: ReturnType<typeof createClient>,
+  rows: { id: string; user_id: string; purchase_token: string | null; status: string }[],
+  max = 60,
+): Promise<SyncResult> {
+  const result: SyncResult = { checked: 0, updated: 0, errors: [], lastSyncAt: new Date().toISOString() };
   const token = await getGoogleAccessToken();
+  const targets = rows.filter((r) => !!r.purchase_token).slice(0, max);
 
-  // Subscription metrics — 30 dias
-  const subs = await queryMetricSet(
-    token,
-    'subscriptionMetricSet',
-    ['activeSubscribersCount', 'newSubscribersCount', 'canceledSubscribersCount', 'subscriptionRenewalsCount'],
-    ['basePlanId'],
-    30,
-  );
-  // Installs — 30 dias
-  const installs = await queryMetricSet(
-    token,
-    'installsMetricSet',
-    ['activeDeviceInstalls'],
-    [],
-    30,
-  );
+  for (let i = 0; i < targets.length; i += 8) {
+    const batch = targets.slice(i, i + 8);
+    await Promise.all(batch.map(async (row) => {
+      try {
+        const r = await fetchPurchaseState(token, row.purchase_token!);
+        result.checked++;
+        if (!r.ok) {
+          const msg = r.body?.error?.message ?? JSON.stringify(r.body).slice(0, 300);
+          console.error(`androidpublisher ${r.status} para token ${row.purchase_token?.slice(0, 12)}…: ${msg}`);
+          // 410/404 = compra sumiu (reembolso/void) → expira localmente
+          if (r.status === 404 || r.status === 410) {
+            await supabase.from('play_subscriptions')
+              .update({ status: 'SUBSCRIPTION_STATE_EXPIRED', cancel_reason: 'não encontrada no Google (reembolso/void)', updated_at: new Date().toISOString() })
+              .eq('id', row.id);
+            result.updated++;
+            return;
+          }
+          if (!result.errors.some((e) => e.status === r.status)) {
+            result.errors.push({ status: r.status, message: msg });
+          }
+          return;
+        }
+        const b: any = r.body;
+        const line = b.lineItems?.[0] ?? {};
+        const patch: Record<string, unknown> = {
+          status: b.subscriptionState ?? row.status,
+          expires_at: line.expiryTime ?? null,
+          start_time: b.startTime ?? null,
+          product_id: line.productId ?? undefined,
+          base_plan_id: line.offerDetails?.basePlanId ?? undefined,
+          auto_renewing: line.autoRenewingPlan?.autoRenewEnabled ?? null,
+          cancel_reason:
+            b.canceledStateContext?.userInitiatedCancellation?.cancelSurveyResult?.reason ??
+            (b.canceledStateContext?.systemInitiatedCancellation ? 'cancelada pelo sistema' :
+              b.canceledStateContext?.developerInitiatedCancellation ? 'cancelada pelo desenvolvedor' :
+              b.canceledStateContext?.replacementCancellation ? 'substituída por outro plano' : null),
+          raw_payload: b,
+          updated_at: new Date().toISOString(),
+        };
+        Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+        await supabase.from('play_subscriptions').update(patch).eq('id', row.id);
+        result.updated++;
 
-  const data = { subs, installs, generatedAt: new Date().toISOString() };
-  metricsCache.set(cacheKey, { at: Date.now(), data });
-  return data;
+        // Sincroniza o flag premium do perfil
+        const stillActive =
+          (b.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE' || b.subscriptionState === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD') &&
+          (!line.expiryTime || new Date(line.expiryTime).getTime() > Date.now());
+        if (!stillActive) {
+          const { data: others } = await supabase
+            .from('play_subscriptions')
+            .select('id, status, expires_at')
+            .eq('user_id', row.user_id);
+          const anyActive = (others ?? []).some((o: any) =>
+            o.id !== row.id &&
+            (o.status === 'SUBSCRIPTION_STATE_ACTIVE' || o.status === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD') &&
+            (!o.expires_at || new Date(o.expires_at).getTime() > Date.now()));
+          if (!anyActive) {
+            await supabase.from('profiles').update({ is_premium: false }).eq('id', row.user_id);
+          }
+        }
+      } catch (err) {
+        console.error('sync error', err);
+        if (!result.errors.some((e) => e.status === 0)) {
+          result.errors.push({ status: 0, message: String((err as Error)?.message ?? err) });
+        }
+      }
+    }));
+  }
+  return result;
 }
+
+// Agrega métricas diárias (30d) a partir do nosso banco.
+function buildMetrics(rows: any[]) {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days: string[] = [];
+  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * dayMs).toISOString().slice(0, 10));
+
+  const timeline = days.map((date) => {
+    const dayStart = new Date(`${date}T00:00:00.000Z`).getTime();
+    const dayEnd = dayStart + dayMs;
+    let novos = 0, cancelados = 0, ativos = 0;
+    rows.forEach((r) => {
+      const st = r.start_time ? new Date(r.start_time).getTime() : 0;
+      const ex = r.expires_at ? new Date(r.expires_at).getTime() : 0;
+      if (st >= dayStart && st < dayEnd) novos++;
+      const canceladoEm = r.status === 'SUBSCRIPTION_STATE_CANCELED' && r.updated_at ? new Date(r.updated_at).getTime() : 0;
+      if (canceladoEm >= dayStart && canceladoEm < dayEnd) cancelados++;
+      if (st && st < dayEnd && (!ex || ex >= dayStart)) ativos++;
+    });
+    return { date, label: date.slice(5).replace('-', '/'), ativos, novos, cancelados, renovacoes: 0 };
+  });
+
+  const since7 = now - 7 * dayMs;
+  const ativosHoje = rows.filter((r) =>
+    (r.status === 'SUBSCRIPTION_STATE_ACTIVE' || r.status === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD') &&
+    (!r.expires_at || new Date(r.expires_at).getTime() > now)).length;
+  const novos7 = rows.filter((r) => r.start_time && new Date(r.start_time).getTime() >= since7).length;
+  const cancelados7 = rows.filter((r) =>
+    r.status === 'SUBSCRIPTION_STATE_CANCELED' && r.updated_at && new Date(r.updated_at).getTime() >= since7).length;
+  const renovacoes30 = rows.filter((r) => {
+    const raw = r.raw_payload as any;
+    const ntype = r.latest_notification_type;
+    return ntype === 2 && r.updated_at && new Date(r.updated_at).getTime() >= now - 30 * dayMs && !!raw;
+  }).length;
+
+  return { ativosHoje, novos7, cancelados7, renovacoes30, timeline };
+}
+
 
 async function fetchSubscribersLocal(supabase: ReturnType<typeof createClient>) {
   const { data: rows, error } = await supabase
