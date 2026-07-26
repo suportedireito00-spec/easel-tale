@@ -192,6 +192,8 @@ const BottomNav = () => {
               setNoticiasCount(0);
               navigate('/noticias');
             }}
+            data-track="bottom_nav_click"
+            data-track-destino="noticias"
             className="flex flex-col items-center justify-end py-1.5 text-foreground hover:text-primary transition-colors"
             aria-label="Notícias"
           >
