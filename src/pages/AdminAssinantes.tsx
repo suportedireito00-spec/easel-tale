@@ -98,58 +98,8 @@ const fmtDate = (iso: string | null) => {
   catch { return '—'; }
 };
 
-function sumMetric(reporting: any, metricName: string): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  let total = 0;
-  rows.forEach((r) => {
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === metricName) total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
+const EMPTY_METRICS: Metrics = { ativosHoje: 0, novos7: 0, cancelados7: 0, renovacoes30: 0, timeline: [] };
 
-// Agrega métricas do Play Reporting por dia (soma entre basePlanId)
-function buildTimeline(reporting: any) {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  const byDate = new Map<string, { date: string; ativos: number; novos: number; cancelados: number; renovacoes: number }>();
-  rows.forEach((r) => {
-    if (!r.startTime) return;
-    const iso = `${r.startTime.year}-${String(r.startTime.month).padStart(2, '0')}-${String(r.startTime.day).padStart(2, '0')}`;
-    const cur = byDate.get(iso) ?? { date: iso, ativos: 0, novos: 0, cancelados: 0, renovacoes: 0 };
-    (r.metrics ?? []).forEach((m: any) => {
-      const v = Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-      if (m.metric === 'activeSubscribersCount') cur.ativos += v;
-      if (m.metric === 'newSubscribersCount') cur.novos += v;
-      if (m.metric === 'canceledSubscribersCount') cur.cancelados += v;
-      if (m.metric === 'subscriptionRenewalsCount') cur.renovacoes += v;
-    });
-    byDate.set(iso, cur);
-  });
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({
-    ...d,
-    label: d.date.slice(5).replace('-', '/'),
-  }));
-}
-
-function activeSubscribersToday(reporting: any): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  // pega o último dia
-  let lastDate = '';
-  rows.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d > lastDate) lastDate = d;
-  });
-  let total = 0;
-  rows.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d !== lastDate) return;
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === 'activeSubscribersCount') total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
 
 const AdminAssinantes = () => {
   const navigate = useNavigate();
