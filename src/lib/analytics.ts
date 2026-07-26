@@ -65,12 +65,16 @@ export function initAnalytics() {
     anonymize_ip: true,
   });
 
+  // Listener global de cliques data-track.
+  initTrackClickListener();
+
   // Se o usuário já consentiu em sessões passadas, sobe o script agora.
   const saved = getConsent();
   if (saved === "granted") {
     loadGtagScript();
     initGoogleAds();
     fbGrantConsent();
+    flushOfflineQueue();
   }
   void nativeSetConsent(saved === "granted");
 }
