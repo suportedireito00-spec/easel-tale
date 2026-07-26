@@ -111,7 +111,7 @@ async function extractPdfText(pdfUrl: string, mistralKey: string): Promise<strin
 
 async function callGemini(geminiKeys: string[], systemPrompt: string, userPrompt: string, opts?: { temp?: number; maxTokens?: number }): Promise<string | null> {
   const { logAiCall } = await import("../_shared/ai-log.ts");
-  const model = "gemini-2.5-flash-lite";
+  const model = "gemini-flash-latest";
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: userPrompt }] }],

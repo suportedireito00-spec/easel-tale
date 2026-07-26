@@ -45,7 +45,7 @@ Regras:
 - Não invente artigos ou números que não existam.
 Responda APENAS com o texto puro da curiosidade.`;
 
-  const res = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+  const res = await geminiFetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

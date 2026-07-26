@@ -44,7 +44,7 @@ Regras CRÍTICAS:
 - Evite repetir temas dos últimos 30 dias.
 - Todo o conteúdo em português do Brasil.`;
 
-    const raw = await callGemini(geminiKey, prompt, "gemini-2.5-flash-lite", 6000, {
+    const raw = await callGemini(geminiKey, prompt, "gemini-flash-latest", 6000, {
       functionName: "blog-edicao-gerar-temas",
       triggerType: "manual",
     });

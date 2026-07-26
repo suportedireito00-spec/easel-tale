@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
     const prompt = `Você modera comentários de um app jurídico. Analise o texto abaixo. Responda APENAS JSON com {"aprovado": bool, "motivo": "..."}. Reprove se contiver: xingamentos, ameaças, discurso de ódio, spam, links suspeitos, dados pessoais alheios, conteúdo sexual. Texto: "${texto.slice(0, 500)}"`;
     const resp = await geminiFetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

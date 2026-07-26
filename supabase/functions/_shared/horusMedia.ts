@@ -2,7 +2,7 @@
 //
 // Usa a API do Gemini diretamente (GEMINI_API_KEY / GEMINI_API_KEY_RESERVA),
 // via geminiFetch — mesma chave usada no chat jurídico. Modelo:
-// gemini-2.5-flash-lite (multimodal: aceita image, audio e PDF inline).
+// gemini-flash-latest (multimodal: aceita image, audio e PDF inline).
 //
 // Endpoint: generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
 // Payload multimodal: parts[].inlineData = { mimeType, data (base64 puro) }.
@@ -14,7 +14,7 @@ import { logAiCall } from "./ai-log.ts";
 import { geminiFetch } from "./geminiFetch.ts";
 import { MODELS } from "./ai-models.ts";
 
-const MODEL = MODELS.text; // "gemini-2.5-flash-lite"
+const MODEL = MODELS.text; // "gemini-flash-latest"
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 function cleanB64(base64: string): string {

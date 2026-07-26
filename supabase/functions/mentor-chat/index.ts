@@ -122,7 +122,7 @@ async function callGemini(
   systemInstruction: string,
 ): Promise<any> {
   const { logAiCall } = await import("../_shared/ai-log.ts");
-  const model = "gemini-2.5-flash-lite";
+  const model = "gemini-flash-latest";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const startedAt = Date.now();
   let success = true, errMsg: string | undefined;
@@ -312,7 +312,7 @@ Deno.serve(async (req) => {
       const _t0 = Date.now();
       const resp = await callGemini(GEMINI, contents, systemPrompt);
       const _usage = resp?.usageMetadata ?? {};
-      await logAiCall({ functionName: "mentor-chat", kind: "text", model: "gemini-2.5-flash-lite", triggerType: "manual", inputUnits: _usage.promptTokenCount ?? 0, outputUnits: _usage.candidatesTokenCount ?? 0, durationMs: Date.now() - _t0, userId: user.id });
+      await logAiCall({ functionName: "mentor-chat", kind: "text", model: "gemini-flash-latest", triggerType: "manual", inputUnits: _usage.promptTokenCount ?? 0, outputUnits: _usage.candidatesTokenCount ?? 0, durationMs: Date.now() - _t0, userId: user.id });
       const cand = resp?.candidates?.[0];
       const parts = cand?.content?.parts || [];
       const fnCalls = parts.filter((p: any) => p.functionCall);

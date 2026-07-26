@@ -2,10 +2,10 @@
  * Modelos Gemini permitidos no app — FONTE ÚNICA DE VERDADE.
  *
  * Política oficial: TODA chamada de texto/multimodal usa
- * `gemini-2.5-flash-lite` (modelo estável, mais econômico e multimodal).
+ * `gemini-flash-latest` (modelo estável, mais econômico e multimodal).
  *
- * Documentação canônica (também salva em `docs/gemini-2.5-flash-lite.md`):
- * https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-lite?hl=pt-br
+ * Documentação canônica (também salva em `docs/gemini-flash-latest.md`):
+ * https://ai.google.dev/gemini-api/docs/models/gemini-flash-latest?hl=pt-br
  *
  * PROIBIDO no app (denylist explícita):
  *  - `gemini-2.5-flash` (mais caro)
@@ -19,8 +19,8 @@
  */
 
 export const MODELS = {
-  text: "gemini-2.5-flash-lite",
-  textGateway: "google/gemini-2.5-flash-lite",
+  text: "gemini-flash-latest",
+  textGateway: "google/gemini-flash-latest",
   image: "gemini-2.5-flash-image",
   imageGateway: "google/gemini-2.5-flash-image",
   tts: "gemini-2.5-flash-preview-tts",
@@ -28,12 +28,12 @@ export const MODELS = {
 
 // Único modelo de texto permitido — sem fallback silencioso para outros.
 export const TEXT_MODEL_FALLBACKS = [
-  "gemini-2.5-flash-lite",
+  "gemini-flash-latest",
 ] as const;
 
 export const ALLOWED_TEXT_MODELS = new Set<string>([
-  "gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash-lite",
+  "gemini-flash-latest",
+  "google/gemini-flash-latest",
 ]);
 
 // Aliases/modelos proibidos — se algum bater aqui, forçamos o modelo permitido.
@@ -45,7 +45,7 @@ const DENY_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Força qualquer id de modelo de texto para `gemini-2.5-flash-lite`.
+ * Força qualquer id de modelo de texto para `gemini-flash-latest`.
  * Se o id vier na forma `google/...` (Lovable Gateway), preserva o prefixo.
  * Loga warning para qualquer tentativa fora da política.
  */
@@ -60,7 +60,7 @@ export function assertTextModel(id: string): string {
   if (denied || !bare) {
     console.warn(
       `[ai-models] Modelo de texto "${raw}" bloqueado pela política. ` +
-      `Forçando "${MODELS.text}". Ver docs/gemini-2.5-flash-lite.md`,
+      `Forçando "${MODELS.text}". Ver docs/gemini-flash-latest.md`,
     );
   } else {
     console.warn(
