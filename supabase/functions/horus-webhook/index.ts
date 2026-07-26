@@ -302,15 +302,18 @@ async function handleIncomingMessage(admin: any, body: any) {
   // 1b) Gate Premium: usuários gratuitos só podem enviar TEXTO.
   //     Áudio, imagem e PDF exigem assinatura. Bloqueia antes do enrichWithMedia
   //     (evita gastar tokens de transcrição/OCR) e responde de forma amigável.
-  if (parsed.media && userRow?.linked_user_id) {
-    const premium = await isUserPremium(admin, userRow.linked_user_id);
+  if (parsed.media) {
+    const premium = userRow?.linked_user_id
+      ? await isUserPremium(admin, userRow.linked_user_id)
+      : false;
     if (!premium) {
       const mediaLabel = parsed.media.type === "audio" ? "áudio"
         : parsed.media.type === "image" ? "imagem"
         : "PDF";
       const blockMsg =
         `Vi que você me mandou um *${mediaLabel}* 🦉\n\n` +
-        `Ler ${mediaLabel} é um recurso *Premium* — no plano gratuito eu só consigo ler *texto*. ` +
+        `Você está na *assinatura gratuita* — nela eu só consigo ler *texto*. ` +
+        `Pra eu ouvir áudios, ver imagens e ler PDFs, é preciso ter um plano ativo.\n\n` +
         `Se quiser, me manda a dúvida escrita que eu te ajudo agora mesmo. ✍️\n\n` +
         `Pra liberar áudio, PDF e imagem:\n` +
         `1️⃣ Abra o app *Vade Mecum*\n` +
@@ -328,10 +331,32 @@ async function handleIncomingMessage(admin: any, body: any) {
       ]);
       return;
     }
+
+    // Premium: envia ack imediato ("estou escutando/vendo/lendo…")
+    const ackMsg = parsed.media.type === "audio"
+      ? "Recebi seu áudio 🦉 Estou escutando, um instante…"
+      : parsed.media.type === "image"
+      ? "Recebi sua imagem 🦉 Estou analisando, um instante…"
+      : "Recebi seu PDF 🦉 Estou lendo, um instante…";
+    evolution.sendText(parsed.remoteJid || parsed.from, ackMsg)
+      .then(() => logOutbound(admin, parsed, "sent", null, { agent: "media_ack", media_type: parsed.media!.type }))
+      .catch((e) => console.warn("horus media_ack fail", String((e as any)?.message || e)));
   }
 
   // 0) Se veio mídia (áudio, imagem, PDF), transcreve/OCR antes de seguir.
+  console.log("horus-webhook enrichWithMedia:in", {
+    phone: parsed.from,
+    hasMedia: Boolean(parsed.media),
+    type: parsed.media?.type,
+    mimetype: parsed.media?.mimetype,
+    hasBase64: Boolean(parsed.media?.base64),
+  });
   await enrichWithMedia(parsed).catch((e) => console.warn("horus media enrich fail", String(e)));
+  console.log("horus-webhook enrichWithMedia:out", {
+    phone: parsed.from,
+    textLen: parsed.text?.length || 0,
+  });
+
 
   // 2) Persist inbound
   await admin.from("horus_conversations").insert({

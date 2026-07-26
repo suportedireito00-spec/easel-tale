@@ -1,60 +1,62 @@
+## Objetivo
 
-## O que descobri (evidência)
+Fazer o Horus (via WhatsApp) realmente ler **áudio, imagem e PDF** enviados pelo usuário, com **aviso imediato** ("estou escutando…", "estou vendo…", "estou lendo…") antes de processar, e **manter o bloqueio Premium** para usuários gratuitos.
 
-- Na tentativa do usuário `wesleyanalise2@gmail.com` de verificar o número do admin (`wn7corporation@gmail.com`, `5511991897603`):
-  - `horus_verification_codes` mostra o código **consumido** às 2026-07-26 04:24:34 (confirm passou).
-  - Mas `horus_whatsapp_users` continua com o número no `wn7corporation` (verified_at antigo de 2026-07-18) e o `wesleyanalise2` **não tem linha**.
-  - `horus_phone_transfers` não registrou a transferência.
-  - Conclusão: a RPC `horus_transferir_numero` foi chamada mas **não moveu** o vínculo — provavelmente por causa de formato de telefone divergente entre tabelas (`horus_verification_codes` guarda `+5511991897603` com `+`, enquanto `horus_whatsapp_users` guarda `5511991897603` sem `+`). Quando o edge function passa `phoneDb` (sem `+`) pra RPC, o `WHERE phone_e164 = _phone` acha na `horus_whatsapp_users`, mas outras comparações e chaves podem estar caindo em `_phone` diferente do que foi gravado. Preciso confirmar isso rastreando os logs do `horus-verify` daquele momento antes de fechar a causa.
-- Nenhum mecanismo hoje avisa o dono antigo — nem em tempo real nem em push. A UI antiga só descobriria se recarregasse status manualmente.
+## Diagnóstico atual (o que já existe e o que está falhando)
 
-## O que vou fazer
+- `supabase/functions/horus-webhook/index.ts` **já detecta** áudio/imagem/documento nos payloads do Evolution (linhas 244-260).
+- **Já existe** um "premium gate" (linhas 305-330) que responde amigavelmente quando um usuário gratuito manda mídia — não precisa ser recriado, só ajustar copy/consistência.
+- `supabase/functions/_shared/horusMedia.ts` já tem `transcribeAudio` (Lovable AI Gateway, `openai/gpt-4o-mini-transcribe`), `describeImage` e `extractPdfText` (Gemini nativo, `gemini-2.5-flash-lite`).
+- **Sinais de que a mídia não está funcionando na prática:**
+  - `ai_usage_log` não tem **nenhuma** chamada `stt`/`vision`/`ocr` do `horus-webhook` — ou seja, o `enrichWithMedia` nunca rodou com sucesso, ou nem chegou a rodar.
+  - Nenhum registro em `horus_conversations` com marcação `[audio]`/`[image]`/`[document]`.
+- **Ausência de ack imediato**: hoje o webhook só manda "digitando…" (presence) e só responde quando a IA termina. Como transcrição/OCR de PDF grande pode levar 8-20s, o usuário fica sem feedback.
 
-### 1. Corrigir a transferência (server)
-- Normalizar telefone **antes** de qualquer query/insert em toda a função `horus-verify`: gravar SEMPRE sem `+` (matching o resto do sistema). Backfill: `UPDATE horus_verification_codes SET phone_e164 = regexp_replace(phone_e164,'^\+','')`.
-- Reforçar a RPC `horus_transferir_numero` pra:
-  - Retornar erro explícito (não silencioso) se nenhuma linha foi movida quando deveria.
-  - Registrar sempre em `horus_phone_transfers` (já faz — garantir que roda).
-  - Gravar `from_user_email` e `to_user_email` (nova coluna) pra facilitar a notificação amigável.
-- Ler `supabase--edge_function_logs` de `horus-verify` no timestamp 04:24:34 pra confirmar a causa real antes de considerar a correção fechada.
+## Mudanças
 
-### 2. Notificação instantânea pro dono antigo
-- Nova tabela `horus_phone_takeover_notices`:
-  ```
-  id, user_id (dono antigo), phone_e164, new_owner_email,
-  created_at, acknowledged_at
-  ```
-  RLS: dono lê/atualiza só as próprias linhas. Realtime habilitado.
-- A RPC `horus_transferir_numero`, quando `v_old_user_id IS NOT NULL`, insere uma linha aqui pro `v_old_user_id` com o email do novo dono.
-- No `wn7corporation` (dono antigo), assim que ele abrir o app (ou já estiver com o app aberto), aparece um modal bloqueante:
-  > "🔒 Seu WhatsApp foi desvinculado — o número `+55 11 9****-7603` foi verificado por outra conta (`wes***@gmail.com`) em 26/07 às 01:24. Se não foi você, entre em contato com o suporte."
-  Com botão "Entendi" que marca `acknowledged_at` e some.
-- Frontend:
-  - Novo hook `useHorusTakeoverNotice()` que consulta a tabela + assina `postgres_changes` INSERT filtrado por `user_id=eq.<meu id>`.
-  - Novo componente `<HorusTakeoverNoticeDialog/>` montado no shell autenticado (`AppShell` ou equivalente) pra aparecer em qualquer tela.
-  - Email de quem tomou é mascarado (`wes***@gmail.com`) por privacidade.
+### 1. Ack imediato ao receber mídia (usuário Premium)
 
-### 3. Refresh instantâneo do lado novo (bug da tela do print)
-- Em `AssistenteHorus.tsx`:
-  - Após `onVerified()` do sheet, além de `loadStatus()`, **invalidar o cache** `HORUS_CACHE_KEY` no localStorage (hoje ele hidrata `linked=null` mesmo quando já verificou, causando o "Vincular WhatsApp" no reopen).
-  - Assinar `postgres_changes` em `horus_whatsapp_users` filtrado por `user_id=eq.<meu id>` pra refletir mudanças sem depender de `loadStatus()` manual.
-- No `HorusVerifyPhoneSheet`, se o servidor devolver `transferred: true`, exibir um subtexto "O vínculo com a conta anterior foi encerrado." na tela de sucesso.
+Em `supabase/functions/horus-webhook/index.ts`, **antes** de chamar `enrichWithMedia` (linha 334), enviar uma mensagem curta pelo Evolution:
 
-### 4. Revogar caso concreto agora
-- Executar manualmente: mover o número do `wn7corporation` pro `wesleyanalise2` (chamando a RPC via SQL após a correção), OU — se o usuário preferir — apenas limpar o vínculo do `wesleyanalise2` e devolver o número ao admin. Vou perguntar antes de rodar.
+- áudio → `"Recebi seu áudio 🦉 Estou escutando, um instante…"`
+- imagem → `"Recebi sua imagem 🦉 Estou analisando, um instante…"`
+- PDF → `"Recebi seu PDF 🦉 Estou lendo, um instante…"`
+- outro documento → mesma mensagem informando que só PDF é suportado no momento (mantém o comportamento atual do `enrichWithMedia`).
+
+Registrar esse ack em `horus_outbound_log` com `agent: "media_ack"` e **não** persistir em `horus_conversations` (evita poluir o histórico usado como contexto na resposta final).
+
+### 2. Reforçar o gate Premium
+
+Manter o bloco atual (linhas 305-330), com dois ajustes:
+
+- **Também bloquear quando `linked_user_id` for nulo mas o número estiver verificado** (`isPhoneVerified` = true e sem conta vinculada não deveria acontecer, mas se acontecer garantimos que não vazamos processamento pago).
+- Copy revisada, deixando explícito o CTA de 7 dias grátis (já existe, apenas polir o texto para bater com o que o usuário pediu: "está na assinatura gratuita e precisa assinar um plano para poder usufruir disso").
+
+### 3. Deixar o processamento de mídia realmente rodar
+
+- **Verificar `GEMINI_API_KEY`** no ambiente da função (via `fetch_secrets`). Se estiver ausente, `describeImage`/`extractPdfText` retornam string vazia silenciosamente — que é exatamente o comportamento observado. Se faltar, pedir para o usuário adicionar.
+- Adicionar `console.log` estruturado em `enrichWithMedia`: entrada com `{type, mimetype, hasBase64, size}`, saída com `{ok, chars}` — assim conseguimos ver nos logs do edge function por que uma mídia específica falhou.
+- Em `horusMedia.ts`, quando a chamada Gemini/STT falhar, gravar a razão no `ai_usage_log` (já grava — só garantir que `errMsg` chega curto e legível) e devolver uma mensagem específica no `parsed.text` (ex.: "não consegui transcrever agora, tenta reenviar").
+
+### 4. Fallback de download
+
+Hoje `enrichWithMedia` tenta `m.base64` embutido e depois `evolution.downloadMedia`. Alguns eventos do Evolution só trazem `mediaKey`/`url` sem base64. Adicionar um terceiro fallback: se `downloadMedia` falhar, logar o erro completo (path, status) para diagnóstico e responder ao usuário com pedido para reenviar. Sem inventar um provedor novo — só instrumentação.
+
+## Fora de escopo
+
+- Não mexer no `AssistenteHorus.tsx` (UI in-app) — a interação de mídia acontece no WhatsApp via Evolution, não na tela do app.
+- Não trocar modelo de visão nem STT.
+- Não criar nova tabela/migration.
 
 ## Arquivos afetados
 
-```text
-supabase/migrations/<novo>.sql              # normaliza codes, ajusta RPC, cria tabela + realtime
-supabase/functions/horus-verify/index.ts    # normalização de telefone consistente + logs mais claros
-src/hooks/useHorusTakeoverNotice.ts         # novo
-src/components/horus/HorusTakeoverNoticeDialog.tsx  # novo
-src/App.tsx (ou AppShell)                   # monta o dialog global
-src/pages/AssistenteHorus.tsx               # invalida cache + realtime subscription
-src/components/horus/HorusVerifyPhoneSheet.tsx  # exibe aviso "conta anterior desvinculada"
-```
+- `supabase/functions/horus-webhook/index.ts` — ack imediato, gate premium reforçado, logs.
+- `supabase/functions/_shared/horusMedia.ts` — logs de erro mais claros, mensagens de fallback.
+- (verificação) segredo `GEMINI_API_KEY` presente no ambiente das edge functions.
 
-## Antes de rodar
+## Como validar
 
-- Confirma pra mim: no caso do teste, o número `+55 11 99189-7603` deve **ficar com o admin (`wn7corporation`)** ou **transferir pro `wesleyanalise2`**? Vou aplicar o cenário que você escolher depois que a correção estiver no ar.
+1. Enviar um áudio pelo WhatsApp de um número **gratuito** → recebe direto a mensagem de gate Premium, sem consumir tokens.
+2. Enviar áudio de um número **Premium** → recebe imediatamente "Recebi seu áudio 🦉 Estou escutando…" e, alguns segundos depois, a resposta da IA usando a transcrição.
+3. Mesma coisa para imagem e PDF.
+4. Conferir no `ai_usage_log` que apareceram registros `kind='stt'`, `'vision'`, `'ocr'` com `success=true`.
