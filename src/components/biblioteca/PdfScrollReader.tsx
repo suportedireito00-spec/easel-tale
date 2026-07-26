@@ -5,12 +5,62 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createPortal } from 'react-dom';
 import { openPdfNative } from '@/lib/fileOpener';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { logPdfEvent } from '@/lib/pdfTelemetry';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+/**
+ * Normaliza URLs de compartilhamento comuns (Drive/Dropbox) para o
+ * arquivo binário direto. Sem isso, pdf.js recebe uma página HTML
+ * (viewer do Drive) e falha com "Invalid PDF structure".
+ */
+function normalizePdfUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    // Google Drive: /file/d/<id>/... ou ?id=<id>
+    if (/(^|\.)drive\.google\.com$/.test(u.hostname)) {
+      const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+      const id = m?.[1] || u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+    }
+    // Dropbox: ?dl=0 -> ?dl=1
+    if (/dropbox\.com$/.test(u.hostname)) {
+      u.searchParams.set('dl', '1');
+      return u.toString();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Em plataforma nativa (Android/iOS), a webview do Capacitor bloqueia várias
+ * respostas cross-origin (CORS/redirect). Baixa via CapacitorHttp (que roda
+ * fora da webview) e devolve os bytes para o pdf.js consumir.
+ */
+async function fetchPdfBytes(url: string): Promise<Uint8Array> {
+  const res = await CapacitorHttp.get({
+    url,
+    responseType: 'arraybuffer',
+    headers: { Accept: 'application/pdf,*/*' },
+  });
+  const data = res.data as any;
+  if (typeof data === 'string') {
+    // base64
+    const bin = atob(data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) return new Uint8Array((data as any).buffer);
+  throw new Error('Resposta HTTP inesperada ao baixar o PDF.');
+}
+
 
 interface Props {
   url: string;
