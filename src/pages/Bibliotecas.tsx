@@ -160,7 +160,10 @@ const Bibliotecas = () => {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.4 }}
-              onClick={() => navigate(`/bibliotecas/${c.id}`)}
+              onClick={() => { track('biblioteca_colecao_opened', { colecao_id: c.id, colecao_label: c.label }); navigate(`/bibliotecas/${c.id}`); }}
+              data-track="biblioteca_colecao_click"
+              data-colecao-id={c.id}
+              data-colecao-label={c.label}
               className="group relative flex items-stretch h-[104px] overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm hover:-translate-y-0.5 transition-transform text-left w-full active:scale-[0.985]"
             >
               <div className="relative w-[140px] shrink-0 overflow-hidden">
