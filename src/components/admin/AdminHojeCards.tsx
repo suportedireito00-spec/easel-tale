@@ -79,8 +79,40 @@ const hora = (v?: string | null) =>
 
 const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
+type Seen = { count: number; keys: string[] };
+
+const seenStorageKey = (id: CardId, d: Date) => `admin_hoje_seen_${id}_${isoDate(d)}`;
+
+const readSeen = (id: CardId, d: Date): Seen => {
+  try {
+    const raw = localStorage.getItem(seenStorageKey(id, d));
+    if (!raw) return { count: 0, keys: [] };
+    const parsed = JSON.parse(raw);
+    return { count: parsed.count || 0, keys: Array.isArray(parsed.keys) ? parsed.keys : [] };
+  } catch {
+    return { count: 0, keys: [] };
+  }
+};
+
+const writeSeen = (id: CardId, d: Date, seen: Seen) => {
+  try {
+    localStorage.setItem(seenStorageKey(id, d), JSON.stringify(seen));
+  } catch {
+    /* ignore */
+  }
+};
+
 export function AdminHojeCards() {
   const [counts, setCounts] = useState<Record<CardId, number>>({ online: 0, cadastros: 0, trial: 0 });
+  const [seenCounts, setSeenCounts] = useState<Record<CardId, number>>(() => {
+    const hoje = new Date();
+    return {
+      online: readSeen('online', hoje).count,
+      cadastros: readSeen('cadastros', hoje).count,
+      trial: readSeen('trial', hoje).count,
+    };
+  });
+  const [novosKeys, setNovosKeys] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<CardId | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,6 +124,7 @@ export function AdminHojeCards() {
   const [provOpen, setProvOpen] = useState<string | null>(null);
   const [provRows, setProvRows] = useState<Row[]>([]);
   const [provLoading, setProvLoading] = useState(false);
+
 
   const abrirProvider = useCallback(
     async (p: string) => {
@@ -135,10 +168,20 @@ export function AdminHojeCards() {
   }, [open]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(new Date()) });
+    const hoje = new Date();
+    const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(hoje) });
     const m = (data as any) || {};
-    setCounts({ online: m.online || 0, cadastros: m.cadastros || 0, trial: m.trial || 0 });
+    const novos: Record<CardId, number> = { online: m.online || 0, cadastros: m.cadastros || 0, trial: m.trial || 0 };
+    setCounts(novos);
+    // Primeira visita do dia: considera tudo como já visto (sem badge)
+    (['online', 'cadastros', 'trial'] as CardId[]).forEach((id) => {
+      if (!localStorage.getItem(seenStorageKey(id, hoje))) {
+        writeSeen(id, hoje, { count: novos[id], keys: [] });
+        setSeenCounts((c) => ({ ...c, [id]: novos[id] }));
+      }
+    });
   }, []);
+
 
   useEffect(() => {
     load();
@@ -160,6 +203,16 @@ export function AdminHojeCards() {
         meta: hora(r.at),
       }));
       setRows(list);
+      if (sameDay(date, new Date())) {
+        const seen = readSeen(id, date);
+        const anteriores = new Set(seen.keys);
+        const novos = seen.keys.length === 0 ? new Set<string>() : new Set(list.filter((r) => !anteriores.has(r.key)).map((r) => r.key));
+        setNovosKeys(novos);
+        writeSeen(id, date, { count: list.length, keys: list.map((r) => r.key) });
+        setSeenCounts((c) => ({ ...c, [id]: list.length }));
+      } else {
+        setNovosKeys(new Set());
+      }
       const ids = Array.from(new Set(list.map((r) => r.userId).filter(Boolean))) as string[];
       if (ids.length) {
         const { data: provs } = await supabase.rpc('admin_user_auth_providers' as any, { _ids: ids });
@@ -178,6 +231,7 @@ export function AdminHojeCards() {
     setDia(hoje);
     fetchRows(id, hoje);
   };
+
 
   const selecionarDia = (d: Date) => {
     setDia(d);
@@ -220,12 +274,18 @@ export function AdminHojeCards() {
           <button
             key={id}
             onClick={() => openCard(id)}
-            className="rounded-2xl border border-border/60 bg-secondary/30 px-2.5 py-3 text-left hover:bg-secondary/60 active:bg-secondary transition-colors"
+            className="relative rounded-2xl border border-border/60 bg-secondary/30 px-2.5 py-3 text-left hover:bg-secondary/60 active:bg-secondary transition-colors"
           >
+            {counts[id] - (seenCounts[id] || 0) > 0 && (
+              <span className="absolute top-2 right-2 inline-flex items-center rounded-full bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-[1px] font-body text-[10px] font-bold text-emerald-400 animate-pulse">
+                +{counts[id] - (seenCounts[id] || 0)}
+              </span>
+            )}
             <Icon className="w-4 h-4 text-primary mb-1.5" />
             <div className="font-display text-xl font-bold text-foreground leading-none">{counts[id]}</div>
             <div className="font-body text-[10.5px] text-muted-foreground mt-1 leading-tight">{label}</div>
           </button>
+
         ))}
       </div>
 
@@ -302,10 +362,20 @@ export function AdminHojeCards() {
                     key={r.key}
                     type="button"
                     onClick={() => r.userId && setDossie(r)}
-                    className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                    className={cn(
+                      'w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors',
+                      novosKeys.has(r.key) && 'bg-emerald-500/10',
+                    )}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                        {novosKeys.has(r.key) && (
+                          <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-[1px] font-body text-[9.5px] font-bold text-emerald-400">
+                            NOVO
+                          </span>
+                        )}
+                      </div>
                       {r.subtitle && (
                         <div className="font-body text-[11px] text-muted-foreground truncate">{r.subtitle}</div>
                       )}
@@ -314,6 +384,7 @@ export function AdminHojeCards() {
                     <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
                   </button>
                 ))}
+
               </div>
             )}
           </div>
