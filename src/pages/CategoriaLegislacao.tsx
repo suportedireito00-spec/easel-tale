@@ -134,6 +134,7 @@ const CategoriaLegislacao = () => {
   const { isPremium } = useSubscription();
   const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [premiumGateDesc, setPremiumGateDesc] = useState('');
+  const [premiumGateFeature, setPremiumGateFeature] = useState<'radar' | 'favorito'>('radar');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLeiId, setSelectedLeiId] = useState<string | null>(null);
   const [selectedLeiNome, setSelectedLeiNome] = useState('');
