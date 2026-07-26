@@ -218,6 +218,7 @@ export default function Assinatura() {
       toast.error("Preencha todos os campos");
       return;
     }
+    track('subscription_payment_started', { plano: selectedPlano, metodo: 'cartao', parcelas: selectedPlano === 'anual' ? parseInt(installments) : 1 });
     setProcessing(true);
     try {
       const [month, year] = cardExpiry.split('/');
@@ -244,14 +245,17 @@ export default function Assinatura() {
       });
       if (error) throw error;
       if (data?.success) {
+        track('subscription_completed', { plano: selectedPlano, metodo: 'cartao', valor });
         toast.success("Pagamento processado com sucesso! 🎉");
         refreshSubscription();
         navigate("/assinatura?welcome=1", { replace: true });
       } else {
+        track('subscription_payment_failed', { plano: selectedPlano, metodo: 'cartao', erro: data?.error ?? 'unknown' });
         toast.error(data?.error || "Erro no pagamento");
       }
     } catch (err: any) {
       console.error(err);
+      track('subscription_payment_failed', { plano: selectedPlano, metodo: 'cartao', erro: err?.message ?? 'exception' });
       const details = err?.message || '';
       toast.error(`Erro ao processar pagamento. ${details}`);
     } finally {
