@@ -6,7 +6,6 @@ import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
 
 let nativeGoogleAuthInit: Promise<void> | null = null;
-let socialLoginInit: Promise<void> | null = null;
 
 // Client ID Web — mesmo valor de capacitor.config.ts. Serve como audience
 // do idToken para o Supabase (signInWithIdToken).
