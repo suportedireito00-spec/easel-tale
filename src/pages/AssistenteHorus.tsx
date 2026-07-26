@@ -452,6 +452,7 @@ const AssistenteHorus = () => {
               <motion.button
                 type="button"
                 onClick={handleWhatsAppClick}
+                data-track="horus_whatsapp_cta_click"
                 className="relative overflow-hidden mx-auto w-full max-w-sm h-14 rounded-full active:scale-[0.98] transition-transform flex items-center justify-center gap-2.5 shadow-lg"
                 style={{
                   background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
