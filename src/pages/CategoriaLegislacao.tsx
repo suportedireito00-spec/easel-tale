@@ -410,7 +410,24 @@ const CategoriaLegislacao = () => {
         tabela_codigo: selectedTabelaNome,
         numero_artigo: numero,
         conteudo_preview: preview || null,
-      }).catch(() => {});
+      }).catch((err) => {
+        if (err?.name !== 'FavoritoLimitError') return;
+        // Reverte o otimismo e oferece o plano
+        setFavArtigoNumeros((prev) => {
+          const next = new Set(prev);
+          next.delete(numero);
+          return next;
+        });
+        setFavoritos((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          localStorage.setItem('vademecum-favoritos', JSON.stringify([...next]));
+          return next;
+        });
+        setPremiumGateFeature('favorito');
+        setPremiumGateDesc(`Contas gratuitas podem manter até ${err.limite} artigos favoritos. Comece 7 dias grátis para favoritar sem limite.`);
+        setShowPremiumGate(true);
+      });
     }
   };
 
