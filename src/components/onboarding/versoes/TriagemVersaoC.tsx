@@ -43,8 +43,9 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
     }
   }, [open]);
 
-  const stepIndex = step === 'abertura' ? -1 : CONTENT_STEPS.indexOf(step);
-  const bg = step === 'abertura' ? CARD_BG.persona : CARD_BG[step];
+  const stepIndex =
+    step === 'abertura' ? -1 : step === 'features' ? CONTENT_STEPS.length - 1 : CONTENT_STEPS.indexOf(step);
+  const bg = step === 'abertura' || step === 'features' ? CARD_BG.persona : CARD_BG[step];
 
   const advance = (patch: Partial<TriagemResult>) => {
     playSfx('whoosh');
@@ -57,8 +58,9 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
     const nx = CONTENT_STEPS[stepIndex + 1];
     if (nx) setStep(nx);
     else {
+      // Última pergunta respondida → entra no reel de funções antes de fechar.
       playSfx('ding');
-      setTimeout(() => onFinished(next), 400);
+      setStep('features');
     }
   };
 
