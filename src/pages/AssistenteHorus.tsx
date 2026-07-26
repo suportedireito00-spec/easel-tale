@@ -241,7 +241,9 @@ const AssistenteHorus = () => {
     }
     openWhatsApp();
   }
-  function handleVerified() {
+  function handleVerified(_info?: { transferred?: boolean }) {
+    // Invalida cache local pra não voltar mostrando "Vincular WhatsApp" depois de verificar.
+    try { window.localStorage.removeItem(HORUS_CACHE_KEY); } catch {}
     loadStatus();
     if (waIntent) {
       setWaIntent(false);
