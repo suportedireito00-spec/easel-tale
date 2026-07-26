@@ -224,9 +224,22 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
     toast.success('Documento anexado');
   };
 
+  const abrirAnexos = () => {
+    if (!podeUsarPremium) { setGateFeature('chat_anexo'); return; }
+    setAttachOpen(v => !v);
+  };
+
+  const toggleWebSearch = () => {
+    if (!podeUsarPremium) { setGateFeature('chat_web'); return; }
+    setWebSearch(w => !w);
+  };
+
   const sendMessage = async () => {
     const text = input.trim();
     if ((!text && !attachment) || loading) return;
+    if (!chatLimit.canUse) { setGateFeature('chat_juridico'); return; }
+    chatLimit.register();
+
     track('chat_juridico_mensagem_enviada', {
       has_attachment: !!attachment,
       attachment_mime: attachment?.mime?.split(';')[0] || undefined,
