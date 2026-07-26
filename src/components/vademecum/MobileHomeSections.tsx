@@ -501,6 +501,9 @@ const MobileHomeSections = ({ onTabChange, onNewsOpenChange }: Props = {}) => {
                     setCategorySearch('');
                     setCategoryOpen(c);
                   }}
+                  data-track="home_card_click"
+                  data-track-name={c.label}
+                  data-track-section="areas"
                 />
               ))}
             </div>
