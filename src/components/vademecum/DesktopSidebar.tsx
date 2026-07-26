@@ -61,12 +61,18 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
   }, [user]);
 
   const handleItemClick = async (item: { id: string; route?: string }) => {
+    console.log('[DesktopSidebar] click', item.id, '→', item.route ?? '(sem rota)');
     if (item.id === 'sair') {
       await signOut();
       navigate('/auth');
       return;
     }
+    if (item.id === 'explicacao') {
+      navigate('/pessoal/artigos');
+      return;
+    }
     if (item.route) navigate(item.route);
+    else console.warn('[DesktopSidebar] item sem rota nem handler:', item.id);
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Visitante';
