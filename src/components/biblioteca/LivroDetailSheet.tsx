@@ -154,6 +154,11 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
   };
 
   const onSelectModo = async (modo: LerModo) => {
+    // Bloqueio de leitura: 1 livro por mês (bypass se este mesmo livro já foi liberado)
+    if (!canUse) { setLerDialog(false); setGateOpen(true); return; }
+    // Registra o uso antes de liberar qualquer modo (scope/ref = id do livro)
+    register(String(livro.id));
+
     if (modo === 'download') { handleDownloadPdf(); return; }
     if (modo === 'desktop') {
       const url = typeof window !== 'undefined' ? window.location.href : '';
@@ -169,8 +174,6 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
       return;
     }
     setLerDialog(false);
-    // Bloqueio de leitura: 1 livro por coleção/mês (bypass se já lido antes ou é o mesmo)
-    if (!canUse) { setGateOpen(true); return; }
     if (modo === 'nativa') setReaderMode('nativa');
     else if (modo === 'pdf') {
       const url = await ensurePdfLocalUrl();
@@ -179,9 +182,8 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
     } else if (modo === 'online' && livro.link) {
       setReaderMode('online');
     }
-    // Registra o uso (scope = coleção, ref = id do livro)
-    register(String(livro.id));
   };
+
 
   const openNativoSystem = () => {
     if (livro.download) openPdfNative(livro.download, `${livro.titulo}.pdf`);
