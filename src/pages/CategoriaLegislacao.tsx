@@ -2249,6 +2249,32 @@ const CategoriaLegislacao = () => {
               >
                 <ArrowLeft className="w-6 h-6 text-white drop-shadow" />
               </button>
+              {/* Botão de favoritar a lei — mesma linha do voltar, à direita */}
+              {(() => {
+                const selectedLei = leis.find((l) => l.id === selectedLeiId);
+                if (!selectedLei) return null;
+                const fav = isLeiFavorita(selectedLei.id);
+                void leiFavToggle; // força re-render em mudanças externas
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleLeiFavorito({
+                        tipo: selectedLei.tipo,
+                        leiId: selectedLei.id,
+                        nome: selectedLei.nome,
+                        descricao: selectedLei.descricao,
+                        tabela_nome: selectedLei.tabela_nome,
+                      });
+                      setLeiFavToggle((n) => n + 1);
+                    }}
+                    aria-label={fav ? 'Remover dos favoritos' : 'Favoritar lei'}
+                    className={`absolute right-4 top-[calc(var(--sai-top,env(safe-area-inset-top,0px))+12px)] z-20 w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl border shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-95 transition touch-manipulation select-none ${fav ? 'bg-rose-500/25 border-rose-300/50' : 'bg-white/10 border-white/25'}`}
+                  >
+                    <Heart className={`w-6 h-6 drop-shadow ${fav ? 'text-rose-400 fill-rose-400' : 'text-white'}`} />
+                  </button>
+                );
+              })()}
               {/* Texto */}
               <div className="absolute inset-0 flex flex-col items-center justify-end text-center px-6 pb-5">
                 <p
