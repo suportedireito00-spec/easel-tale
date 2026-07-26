@@ -19,6 +19,8 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
+const QR_TTL_SECONDS = 60;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -40,7 +42,7 @@ Deno.serve(async (req) => {
         .lt('expires_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       const desktopId = typeof body?.desktop_id === 'string' ? body.desktop_id.slice(0, 128) : null;
-      const expiresAt = new Date(Date.now() + 60 * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + QR_TTL_SECONDS * 1000).toISOString();
 
       const { data, error } = await admin
         .from('desktop_link_tokens')
@@ -48,7 +50,7 @@ Deno.serve(async (req) => {
         .select('token, expires_at')
         .single();
       if (error) throw error;
-      return json({ token: data.token, expires_at: data.expires_at });
+      return json({ token: data.token, expires_at: data.expires_at, expires_in_seconds: QR_TTL_SECONDS });
     }
 
     if (action === 'session_status') {
