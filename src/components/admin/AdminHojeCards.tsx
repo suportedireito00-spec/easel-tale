@@ -87,18 +87,9 @@ export function AdminHojeCards() {
   const [dia, setDia] = useState<Date>(() => new Date());
 
   const load = useCallback(async () => {
-    const since = startOfToday();
-    const [online, cadastros, trial] = await Promise.all([
-      supabase.from('user_activity_log' as any).select('user_id', { count: 'exact', head: false }).gte('last_seen_at', since),
-      supabase.from('profiles' as any).select('id', { count: 'exact', head: true }).gte('created_at', since),
-      supabase.from('play_subscriptions' as any).select('id', { count: 'exact', head: true }).gte('created_at', since),
-    ]);
-    const uniques = new Set(((online.data as any[]) || []).map((r) => r.user_id)).size;
-    setCounts({
-      online: uniques || online.count || 0,
-      cadastros: cadastros.count || 0,
-      trial: trial.count || 0,
-    });
+    const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(new Date()) });
+    const m = (data as any) || {};
+    setCounts({ online: m.online || 0, cadastros: m.cadastros || 0, trial: m.trial || 0 });
   }, []);
 
   useEffect(() => {
@@ -110,67 +101,18 @@ export function AdminHojeCards() {
   const fetchRows = useCallback(async (id: CardId, date: Date) => {
     setLoading(true);
     setRows([]);
-    const { start, end } = dayRange(date);
-    const pendingIds: string[] = [];
     try {
-      if (id === 'online') {
-        const { data } = await supabase
-          .from('user_activity_log' as any)
-          .select('user_id, email, display_name, current_route, last_seen_at')
-          .gte('last_seen_at', start)
-          .lt('last_seen_at', end)
-          .order('last_seen_at', { ascending: false })
-          .limit(300);
-        const seen = new Set<string>();
-        setRows(
-          ((data as any[]) || [])
-            .filter((r) => (seen.has(r.user_id) ? false : (seen.add(r.user_id), true)))
-            .map((r) => (pendingIds.push(r.user_id), {
-              key: r.user_id,
-              userId: r.user_id,
-              title: r.display_name || r.email || 'Usuário',
-              email: r.email || null,
-              subtitle: rotaParaFuncao(r.current_route).label,
-              meta: hora(r.last_seen_at),
-            })),
-        );
-      } else if (id === 'cadastros') {
-        const { data } = await supabase
-          .from('profiles' as any)
-          .select('id, full_name, email, created_at')
-          .gte('created_at', start)
-          .lt('created_at', end)
-          .order('created_at', { ascending: false })
-          .limit(300);
-        setRows(
-          ((data as any[]) || []).map((r) => (pendingIds.push(r.id), {
-            key: r.id,
-            userId: r.id,
-            title: r.full_name || r.email || 'Usuário',
-            email: r.email || null,
-            subtitle: r.email || null,
-            meta: hora(r.created_at),
-          })),
-        );
-      } else {
-        const { data } = await supabase
-          .from('play_subscriptions' as any)
-          .select('id, user_id, product_id, base_plan_id, status, created_at')
-          .gte('created_at', start)
-          .lt('created_at', end)
-          .order('created_at', { ascending: false })
-          .limit(300);
-        setRows(
-          ((data as any[]) || []).map((r) => ({
-            key: r.id,
-            userId: r.user_id,
-            title: r.product_id || 'Assinatura',
-            subtitle: `${r.base_plan_id || '—'} · ${String(r.status || '').replace('SUBSCRIPTION_STATE_', '')}`,
-            meta: hora(r.created_at),
-          })),
-        );
-      }
-      const ids = Array.from(new Set(pendingIds)).filter(Boolean);
+      const { data } = await supabase.rpc('admin_lista_dia' as any, { _tipo: id, _dia: isoDate(date) });
+      const list = ((data as any[]) || []).map((r) => ({
+        key: r.key,
+        userId: r.user_id,
+        title: r.title || 'Usuário',
+        email: r.email || null,
+        subtitle: id === 'online' ? rotaParaFuncao(r.subtitle).label : r.subtitle,
+        meta: hora(r.at),
+      }));
+      setRows(list);
+      const ids = Array.from(new Set(list.map((r) => r.userId).filter(Boolean))) as string[];
       if (ids.length) {
         const { data: provs } = await supabase.rpc('admin_user_auth_providers' as any, { _ids: ids });
         const map = new Map<string, string>(((provs as any[]) || []).map((p) => [p.user_id, p.provider]));
@@ -180,6 +122,7 @@ export function AdminHojeCards() {
       setLoading(false);
     }
   }, []);
+
 
   const openCard = (id: CardId) => {
     const hoje = new Date();
