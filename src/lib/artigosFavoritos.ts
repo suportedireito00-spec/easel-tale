@@ -129,6 +129,17 @@ export async function toggleArtigoFavorito(fav: ArtigoFav): Promise<boolean> {
       await supabase.from('artigos_favoritos').delete().eq('id', existing.id);
       nowOn = false;
     } else {
+      // Teto de favoritos ativos para contas gratuitas
+      if (!isPremiumSnapshot(user.id, user.email)) {
+        const limite = await favoritoLimit();
+        if (limite > 0) {
+          const { count } = await supabase
+            .from('artigos_favoritos')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+          if ((count || 0) >= limite) throw new FavoritoLimitError(limite);
+        }
+      }
       await supabase.from('artigos_favoritos').insert({
         user_id: user.id,
         tabela_codigo: tabela,
