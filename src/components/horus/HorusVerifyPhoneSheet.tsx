@@ -277,6 +277,11 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
                     <p className="font-body text-sm text-muted-foreground mt-1">
                       Você acabou de verificar seu número <b className="text-foreground">{phone}</b>.
                     </p>
+                    {transferred && (
+                      <p className="font-body text-xs text-amber-400 mt-2">
+                        O vínculo com a conta anterior foi encerrado automaticamente.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <label className="block">
