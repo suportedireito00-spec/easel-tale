@@ -2811,7 +2811,7 @@ jobs:
                   <item name="android:windowActionBar">false</item>
                   <item name="android:windowNoTitle">true</item>
                   <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowBackground">@color/splash_bg</item>
+                  <item name="android:windowBackground">@color/app_bg</item>
               </style>
               <style name="AppTheme.NoActionBar" parent="AppTheme">
                   <item name="windowActionBar">false</item>
@@ -2819,7 +2819,7 @@ jobs:
                   <item name="android:windowActionBar">false</item>
                   <item name="android:windowNoTitle">true</item>
                   <item name="android:windowContentOverlay">@null</item>
-                  <item name="android:windowBackground">@color/splash_bg</item>
+                  <item name="android:windowBackground">@color/app_bg</item>
               </style>
               <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
                   <item name="android:background">@color/splash_bg</item>
