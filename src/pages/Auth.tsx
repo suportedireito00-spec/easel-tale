@@ -752,26 +752,10 @@ const AuthFormScreen = ({ onBack }: { onBack: () => void }) => {
           initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, type: 'spring', stiffness: 200, damping: 24 }}
-          className={`relative z-20 mx-4 bg-neutral-950/85 backdrop-blur-xl border border-primary/20 rounded-3xl shadow-[0_25px_80px_-20px_rgba(0,0,0,0.9)] ${
-            isElectronApp ? 'w-full max-w-[460px] p-8' : 'w-full max-w-[340px] p-5'
-          }`}
+          className={`relative z-20 mx-4 bg-neutral-950/85 backdrop-blur-xl border border-primary/20 rounded-3xl shadow-[0_25px_80px_-20px_rgba(0,0,0,0.9)] w-full max-w-[460px] p-8`}
         >
-          {isElectronApp ? (
-            <DesktopQrLogin />
-          ) : (
-            <>
-              <div className="flex flex-col items-center mb-3">
-                <img
-                  src={logoOABnaRisca}
-                  alt="Vacatio"
-                  className="w-11 h-11 rounded-xl shadow-lg object-cover border-2 border-primary/40"
-                />
-                <h1 className="font-display text-base font-bold text-white mt-2">Vacatio</h1>
-                <p className="text-[10px] font-body text-white/60">Estudos Jurídicos</p>
-              </div>
-              {formContent}
-            </>
-          )}
+          <DesktopQrLogin />
+
         </motion.div>
       </motion.main>
     );
