@@ -402,7 +402,7 @@ jobs:
                   ('android:windowActionBar', 'false'),
                   ('android:windowNoTitle', 'true'),
                   ('android:windowContentOverlay', '@null'),
-                  ('android:windowBackground', '@color/splash_bg'),
+                  ('android:windowBackground', '@color/app_bg'),
               ])
               s2 = replace_or_add_style(s2, 'AppTheme.NoActionBarLaunch', 'AppTheme.NoActionBar', [
                   ('android:background', '@color/splash_bg'),
