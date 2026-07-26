@@ -253,6 +253,8 @@ const BottomNav = () => {
             onPointerDown={() => prefetchRoute('assistenteHorus')}
             onMouseEnter={() => prefetchRoute('assistenteHorus')}
             onClick={() => { haptic.selection(); navigate('/assistente-horus'); }}
+            data-track="bottom_nav_click"
+            data-track-destino="assistente-horus"
             className="flex flex-col items-center justify-end py-1.5 text-foreground hover:text-primary transition-colors"
             aria-label="Assistente Horus"
           >
