@@ -1,62 +1,119 @@
+# Plano: Tracking unificado GA4 + Meta Ads em todas as plataformas
+
+## Contexto confirmado
+- **Web**: já usa GA4 (`src/lib/analytics.ts`) e Meta Pixel (`src/lib/fbPixel.ts`) sob consentimento LGPD. Só dispara `page_view` hoje; eventos customizados praticamente não existem.
+- **iOS/Android**: já usa Firebase Analytics via `@capacitor-firebase/analytics` (`src/lib/nativeAnalytics.ts`) e espelha `page_view`/`screen_view`. Não há Meta App Events nativo instalado ainda.
+- **Consentimento**: já centralizado no banner de cookies; web e nativo respeitam o mesmo estado.
+
 ## Objetivo
+Ter o **mesmo catálogo de eventos** (nomes e parâmetros-chave) chegando ao GA4 e ao Meta Ads, tanto no navegador quanto nos apps iOS/Android. Isso permite:
+- Criar conversões iguais no GA4 e no Meta Events Manager.
+- Construir públicos de remarketing (ex: "abriu Biblioteca mas não assinou").
+- Comparar custo por conversão entre Google Ads e Facebook Ads com eventos equivalentes.
 
-Fazer o Horus (via WhatsApp) realmente ler **áudio, imagem e PDF** enviados pelo usuário, com **aviso imediato** ("estou escutando…", "estou vendo…", "estou lendo…") antes de processar, e **manter o bloqueio Premium** para usuários gratuitos.
+## Fase 1 — Fundação web (entrega imediata)
+**Arquivos principais**: `src/lib/analytics.ts`, `src/lib/analyticsEvents.ts` (novo), `src/lib/screenTracking.ts` (novo), `src/App.tsx`.
 
-## Diagnóstico atual (o que já existe e o que está falhando)
+1. **Catálogo tipado de eventos** (`analyticsEvents.ts`)
+   - Define eventos em snake_case para GA4 e mapeamento automático para Meta (ex: `sign_up` → `CompleteRegistration`, `purchase` → `Purchase`, `upgrade_click` → `InitiateCheckout`).
+   - Define `ROUTE_NAMES`: mapeia rotas para nomes amigáveis de tela (`/biblioteca` → "Biblioteca Jurídica").
 
-- `supabase/functions/horus-webhook/index.ts` **já detecta** áudio/imagem/documento nos payloads do Evolution (linhas 244-260).
-- **Já existe** um "premium gate" (linhas 305-330) que responde amigavelmente quando um usuário gratuito manda mídia — não precisa ser recriado, só ajustar copy/consistência.
-- `supabase/functions/_shared/horusMedia.ts` já tem `transcribeAudio` (Lovable AI Gateway, `openai/gpt-4o-mini-transcribe`), `describeImage` e `extractPdfText` (Gemini nativo, `gemini-2.5-flash-lite`).
-- **Sinais de que a mídia não está funcionando na prática:**
-  - `ai_usage_log` não tem **nenhuma** chamada `stt`/`vision`/`ocr` do `horus-webhook` — ou seja, o `enrichWithMedia` nunca rodou com sucesso, ou nem chegou a rodar.
-  - Nenhum registro em `horus_conversations` com marcação `[audio]`/`[image]`/`[document]`.
-- **Ausência de ack imediato**: hoje o webhook só manda "digitando…" (presence) e só responde quando a IA termina. Como transcrição/OCR de PDF grande pode levar 8-20s, o usuário fica sem feedback.
+2. **Camada central `track()`**
+   - `track(name, params)` dispara GA4 + Meta Pixel simultaneamente no web.
+   - Valida limites GA4 (25 parâmetros, chaves ≤40 chars, valores string ≤100 chars).
+   - Buffer offline: se consentimento ainda não foi concedido, enfileira até 50 eventos e descarrega ao aceitar.
+   - Modo debug `?ga_debug=1` loga no console.
 
-## Mudanças
+3. **Screen tracking automático**
+   - Hook `useScreenTracking()`:
+     - Dispara `screen_view` (GA4) e `PageView`/`ViewContent` (Meta) a cada mudança de rota.
+     - Envia `screen_name` amigável, `screen_class` (componente), `engagement_time_msec`.
+     - Dispara `screen_exit` ao desmontar a tela com tempo de permanência calculado.
+   - Scroll depth: `scroll_25`, `scroll_50`, `scroll_75`, `scroll_100`.
 
-### 1. Ack imediato ao receber mídia (usuário Premium)
+4. **User properties**
+   - `user_id`, `is_premium`, `platform` (web/pwa), `app_version`.
 
-Em `supabase/functions/horus-webhook/index.ts`, **antes** de chamar `enrichWithMedia` (linha 334), enviar uma mensagem curta pelo Evolution:
+5. **Listener global de cliques**
+   - Captura `data-track="..."` em qualquer elemento clicável e dispara `track()` com os `data-*` atributos como parâmetros.
+   - Exemplo: `<button data-track="biblioteca_abrir_livro" data-livro-id={id}>`.
 
-- áudio → `"Recebi seu áudio 🦉 Estou escutando, um instante…"`
-- imagem → `"Recebi sua imagem 🦉 Estou analisando, um instante…"`
-- PDF → `"Recebi seu PDF 🦉 Estou lendo, um instante…"`
-- outro documento → mesma mensagem informando que só PDF é suportado no momento (mantém o comportamento atual do `enrichWithMedia`).
+## Fase 2 — Instrumentação de ações (web)
+Adicionar `data-track` e chamadas `track()` nos pontos-chave. Não altera lógica de negócio.
 
-Registrar esse ack em `horus_outbound_log` com `agent: "media_ack"` e **não** persistir em `horus_conversations` (evita poluir o histórico usado como contexto na resposta final).
+**Telas/componentes a instrumentar**:
+- **Navegação**: menu lateral, cards da home, botões "Voltar".
+- **Vade Mecum**: busca, abertura de lei/artigo, favoritar, anotar, narração, explicação.
+- **Jurisprudência**: busca, filtro, abrir resultado, pesquisas prontas, súmulas.
+- **Biblioteca**: abrir, download.
+- **Horus**: iniciar chat, enviar mensagem, mídia bloqueada (free).
+- **Chat Jurídico**: iniciar, enviar mensagem.
+- **Aprender/Praticar**: iniciar aula, concluir aula, flashcard, quiz finalizar.
+- **Ferramentas**: petição inicial, dicionário, locais jurídicos.
+- **Radar**: abrir deputado, PL, votação.
+- **Premium/Monetização**: cliques em planos, checkout, purchase.
+- **Auth**: login, sign_up, logout (com método).
+- **Onboarding**: passos, conclusão.
+- **Erros**: ErrorBoundary dispara `app_error`.
 
-### 2. Reforçar o gate Premium
+## Fase 3 — Nativo iOS/Android (Firebase Analytics)
+**Arquivos principais**: `src/lib/nativeAnalytics.ts`, `src/lib/analyticsEvents.ts` (reutilizado), `src/App.tsx`.
 
-Manter o bloco atual (linhas 305-330), com dois ajustes:
+1. **Reutilizar o mesmo catálogo**
+   - `track()` detecta `Capacitor.isNativePlatform()` e chama `nativeLogEvent()` com os mesmos nomes/parâmetros.
+   - `screen_view` chama `nativeLogScreen()`.
 
-- **Também bloquear quando `linked_user_id` for nulo mas o número estiver verificado** (`isPhoneVerified` = true e sem conta vinculada não deveria acontecer, mas se acontecer garantimos que não vazamos processamento pago).
-- Copy revisada, deixando explícito o CTA de 7 dias grátis (já existe, apenas polir o texto para bater com o que o usuário pediu: "está na assinatura gratuita e precisa assinar um plano para poder usufruir disso").
+2. **Mapeamento de parâmetros nativos**
+   - Firebase Analytics tem restrições diferentes do GA4 web (nomes ≤40 chars, tipos limitados). Criar normalizador que trunca/limpa parâmetros.
 
-### 3. Deixar o processamento de mídia realmente rodar
+3. **User properties nativos**
+   - `nativeSetUserId`, `nativeSetUserProperty` para `is_premium`, `platform=ios/android`.
 
-- **Verificar `GEMINI_API_KEY`** no ambiente da função (via `fetch_secrets`). Se estiver ausente, `describeImage`/`extractPdfText` retornam string vazia silenciosamente — que é exatamente o comportamento observado. Se faltar, pedir para o usuário adicionar.
-- Adicionar `console.log` estruturado em `enrichWithMedia`: entrada com `{type, mimetype, hasBase64, size}`, saída com `{ok, chars}` — assim conseguimos ver nos logs do edge function por que uma mídia específica falhou.
-- Em `horusMedia.ts`, quando a chamada Gemini/STT falhar, gravar a razão no `ai_usage_log` (já grava — só garantir que `errMsg` chega curto e legível) e devolver uma mensagem específica no `parsed.text` (ex.: "não consegui transcrever agora, tenta reenviar").
+4. **Teste em builds nativos**
+   - Validar no Firebase DebugView (Android) e Xcode console (iOS) que `screen_view` e eventos chegam.
 
-### 4. Fallback de download
+## Fase 4 — Meta App Events nativo (iOS/Android)
+**Novo plugin**: adicionar `@capacitor-community/facebook-login` ou `capacitor-meta-events` (a definir conforme compatibilidade) para enviar eventos Meta diretamente dos apps.
 
-Hoje `enrichWithMedia` tenta `m.base64` embutido e depois `evolution.downloadMedia`. Alguns eventos do Evolution só trazem `mediaKey`/`url` sem base64. Adicionar um terceiro fallback: se `downloadMedia` falhar, logar o erro completo (path, status) para diagnóstico e responder ao usuário com pedido para reenviar. Sem inventar um provedor novo — só instrumentação.
+1. **Configuração**
+   - Adicionar `FACEBOOK_APP_ID` e `FACEBOOK_CLIENT_TOKEN` como secrets.
+   - Atualizar `capacitor.config.ts` com o ID do app.
+   - Atualizar workflows de build (`build-ios.yml`, `build-android.yml`) para injetar tokens no `Info.plist` e `AndroidManifest.xml`.
 
-## Fora de escopo
+2. **Camada `metaNative.ts`**
+   - `metaLogEvent(event, params)` mapeia eventos do catálogo para eventos padrão Meta (`fb_mobile_complete_registration`, `fb_mobile_purchase`, `fb_mobile_search`, etc.).
+   - `metaSetUserData()` para advanced matching (email/phone hash).
 
-- Não mexer no `AssistenteHorus.tsx` (UI in-app) — a interação de mídia acontece no WhatsApp via Evolution, não na tela do app.
-- Não trocar modelo de visão nem STT.
-- Não criar nova tabela/migration.
+3. **Integrar no `track()`**
+   - No nativo, `track()` passa a disparar **Firebase Analytics + Meta App Events**.
 
-## Arquivos afetados
+## Fase 5 — Google Ads / Facebook Ads prontos para uso
+Depois das fases 1–4, você configura na UI das plataformas (não é código):
 
-- `supabase/functions/horus-webhook/index.ts` — ack imediato, gate premium reforçado, logs.
-- `supabase/functions/_shared/horusMedia.ts` — logs de erro mais claros, mensagens de fallback.
-- (verificação) segredo `GEMINI_API_KEY` presente no ambiente das edge functions.
+1. **GA4 → Google Ads**
+   - Vincular propriedade GA4 à conta Google Ads.
+   - Marcar `sign_up`, `purchase`, `upgrade_click` como **Conversões principais**.
+   - Importar públicos GA4 (ex: "usuários que viram Biblioteca nos últimos 7 dias") para campanhas.
 
-## Como validar
+2. **Meta Events Manager**
+   - Conectar Pixel web + App Events nativo ao mesmo Business Manager.
+   - Marcar `CompleteRegistration`, `Purchase`, `InitiateCheckout` como conversões.
+   - Criar públicos personalizados a partir dos eventos customizados (`biblioteca_abrir_livro`, `horus_iniciar_chat`).
 
-1. Enviar um áudio pelo WhatsApp de um número **gratuito** → recebe direto a mensagem de gate Premium, sem consumir tokens.
-2. Enviar áudio de um número **Premium** → recebe imediatamente "Recebi seu áudio 🦉 Estou escutando…" e, alguns segundos depois, a resposta da IA usando a transcrição.
-3. Mesma coisa para imagem e PDF.
-4. Conferir no `ai_usage_log` que apareceram registros `kind='stt'`, `'vision'`, `'ocr'` com `success=true`.
+## Entregáveis por fase
+| Fase | Entrega | Tempo estimado |
+|------|---------|----------------|
+| 1 | Web: catálogo, screen tracking, user properties, listener data-track | ~1h |
+| 2 | Web: instrumentação das ações principais | ~2h |
+| 3 | iOS/Android: eventos Firebase Analytics unificados | ~1h30 |
+| 4 | iOS/Android: Meta App Events nativo | ~2h |
+| 5 | Documentação de configuração GA4/Meta Ads | ~30min |
+
+## Riscos e observações
+- **LGPD/Consentimento**: eventos Meta nativos também precisam respeitar o consentimento. A camada `track()` só dispara se consentimento = granted.
+- **Performance**: listener global é O(1) por clique; buffer offline limitado a 50 eventos.
+- **Compatibilidade nativa**: Meta App Events no Capacitor pode exigir configuração manual no Xcode/Android Studio; incluímos isso nos workflows.
+- **Não quebra funcionalidade**: todos os eventos são fire-and-forget com try/catch.
+
+## Próxima ação
+Se aprovar, começo pela **Fase 1** (fundação web) e entrego em seguida a **Fase 2** (instrumentação das ações). As fases 3 e 4 ficam para depois, assim você já consegue validar no GA4 DebugView e no Meta Pixel Helper antes de tocar nos builds nativos.
