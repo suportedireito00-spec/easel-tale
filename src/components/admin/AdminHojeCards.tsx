@@ -206,7 +206,7 @@ export function AdminHojeCards() {
       if (sameDay(date, new Date())) {
         const seen = readSeen(id, date);
         const anteriores = new Set(seen.keys);
-        const novos = seen.keys.length === 0 && seen.count === 0 ? new Set<string>() : new Set(list.filter((r) => !anteriores.has(r.key)).map((r) => r.key));
+        const novos = seen.keys.length === 0 ? new Set<string>() : new Set(list.filter((r) => !anteriores.has(r.key)).map((r) => r.key));
         setNovosKeys(novos);
         writeSeen(id, date, { count: list.length, keys: list.map((r) => r.key) });
         setSeenCounts((c) => ({ ...c, [id]: list.length }));
