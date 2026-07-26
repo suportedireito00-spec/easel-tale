@@ -12,6 +12,7 @@ export type PremiumFeatureKey =
   | 'narracao' | 'explicacao' | 'exemplo' | 'termos' | 'perguntar'
   | 'jurisprudencia' | 'videoaula' | 'grafo' | 'mapa_mental' | 'lembretes'
   | 'baixar' | 'anotacoes' | 'grifo' | 'flashcards' | 'questoes'
+  | 'praticar' | 'favorito'
   | 'radar' | 'blog' | 'biblioteca' | 'aprender' | 'horus' | 'default';
 
 type FeatureInfo = { title: string; description: string; icon: LucideIcon };
