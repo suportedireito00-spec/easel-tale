@@ -2760,6 +2760,24 @@ export type Database = {
         }
         Relationships: []
       }
+      dicionario_termo_stats: {
+        Row: {
+          clicks: number
+          palavra: string
+          updated_at: string
+        }
+        Insert: {
+          clicks?: number
+          palavra: string
+          updated_at?: string
+        }
+        Update: {
+          clicks?: number
+          palavra?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feature_limits: {
         Row: {
           category: string
@@ -7435,6 +7453,10 @@ export type Database = {
       horus_transferir_numero: {
         Args: { _new_user_id: string; _phone: string }
         Returns: Json
+      }
+      increment_dicionario_click: {
+        Args: { p_palavra: string }
+        Returns: undefined
       }
       increment_user_metrics: {
         Args: { p_clicks: number; p_seconds: number }
