@@ -32,6 +32,8 @@ import { slugToTipo, tipoToSlug, leiToSlug, leiPath, findLeiBySlug, CATEGORIAS_F
 import { LEIS_CATALOG } from '@/data/leisCatalog';
 import { Navigate } from 'react-router-dom';
 import { track } from '@/lib/analyticsEvents';
+import { toggleArtigoFavorito, listNumerosFavoritosByTabela, ARTIGOS_FAV_EVENT } from '@/lib/artigosFavoritos';
+import { isFavorito as isLeiFavorita, toggleFavorito as toggleLeiFavorito, LEIS_FAVORITOS_EVENT } from '@/lib/leisFavoritos';
 
 const TIPO_CONFIG: Record<string, { label: string; icon: React.ElementType; bg: string }> = {
   constituicao: { label: 'Constituição', icon: Landmark, bg: 'from-amber-500/90 to-amber-700/80' },
@@ -226,6 +228,8 @@ const CategoriaLegislacao = () => {
   const [loadingDbAlteracoes, setLoadingDbAlteracoes] = useState(false);
   const [grifadoNumeros, setGrifadoNumeros] = useState<Set<string>>(new Set());
   const [anotadoNumeros, setAnotadoNumeros] = useState<Set<string>>(new Set());
+  const [favArtigoNumeros, setFavArtigoNumeros] = useState<Set<string>>(new Set());
+  const [leiFavToggle, setLeiFavToggle] = useState(0);
 
   // Load user's grifos & anotacoes for the selected lei (for tag indicators)
   useEffect(() => {
