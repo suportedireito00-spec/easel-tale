@@ -23,7 +23,7 @@ type Props = {
 type Step = 'abertura' | 'persona' | 'interesses' | 'dores' | 'nome' | 'whatsapp' | 'features';
 const CONTENT_STEPS: Step[] = ['persona', 'interesses', 'dores', 'nome', 'whatsapp'];
 
-const CARD_BG: Record<Exclude<Step, 'abertura'>, { grad: string; accent: string; label: string }> = {
+const CARD_BG: Record<Exclude<Step, 'abertura' | 'features'>, { grad: string; accent: string; label: string }> = {
   persona: { grad: 'linear-gradient(140deg, #F5C518 0%, #E0A000 55%, #8B6508 100%)', accent: '#1A1204', label: 'PERFIL' },
   interesses: { grad: 'linear-gradient(140deg, #2DD4A8 0%, #14a37f 55%, #0F4C3A 100%)', accent: '#03170F', label: 'FOCO' },
   dores: { grad: 'linear-gradient(140deg, #E85D3A 0%, #B23A20 55%, #5C1A0F 100%)', accent: '#FFF3EB', label: 'DORES' },
