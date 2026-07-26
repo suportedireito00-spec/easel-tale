@@ -4,6 +4,7 @@ import { pickAsset, assetUrl } from '@/lib/assetUrl';
 import { Menu as MenuIcon, Search, Scale, BookOpen, Clock, Layers, Eye, Quote, Lightbulb, ScrollText, History, ChevronLeft, User as UserIcon, Mic, Radar, MapPin, Monitor, Library, Bell, GraduationCap, Target, CloudOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfileSummary } from '@/hooks/useProfileSummary';
 import { supabase } from '@/integrations/supabase/client';
 import cover2Asset from '@/assets/covers/cover-2.png.asset.json';
 import cover2Bundled from '@/assets/covers/cover-2.webp';
@@ -68,6 +69,7 @@ const HomeHeaderHero = ({ onSearchOpenChange }: { onSearchOpenChange?: (open: bo
   const navigate = useNavigate();
   const shortcutBadges = useShortcutBadges();
   const { user } = useAuth();
+  const { data: profileSummary } = useProfileSummary();
   const { images: dbImages } = useHeroHomeImages();
   const { config: motifsConfig } = useHeroMotifsConfig();
   // Serve Supabase-hosted images via the image transform endpoint so the
