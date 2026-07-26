@@ -114,10 +114,12 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
     setSending(false);
     if (error || data?.error) return toast.error(data?.error || 'Código incorreto');
     haptic.medium();
+    const wasTransferred = Boolean((data as any)?.transferred);
+    setTransferred(wasTransferred);
     const suggested = await suggestName();
     setNome(suggested);
     setStep('success');
-    onVerified();
+    onVerified({ transferred: wasTransferred });
   }
 
   async function saveNameAndFinish() {
