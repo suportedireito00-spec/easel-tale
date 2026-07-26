@@ -211,31 +211,42 @@ const Jurisprudencia = () => {
           <HeroOrnaments />
         </div>
 
-        {/* Figuras vazadas rotativas — mesmo padrão do painel amarelo */}
-        {(() => {
-          const fig = JURIS_FIGURES[coverIndex % JURIS_FIGURES.length];
-          if (!fig) return null;
-          const pos =
-            fig.side === 'left' ? 'left-0 justify-start'
-            : fig.side === 'right' ? 'right-0 justify-end'
-            : 'inset-x-0 justify-center';
-          const anim = fig.side === 'left' ? 'animate-figure-in-left' : 'animate-figure-in';
-          return (
-            <div
-              key={coverIndex}
-              className={`pointer-events-none absolute top-2 bottom-2 ${pos} flex items-center`}
-            >
-              <img
-                src={assetUrl(fig.url)}
-                alt=""
-                aria-hidden
-                loading="eager"
-                decoding="async"
-                className={`h-full w-auto max-w-[62%] sm:max-w-[52%] lg:max-w-[42%] object-contain opacity-90 drop-shadow-[0_10px_25px_rgba(0,0,0,0.55)] ${anim}`}
-              />
-            </div>
-          );
-        })()}
+        {/* Figuras vazadas rotativas com crossfade + Ken Burns (mesmo padrão do painel amarelo) */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <AnimatePresence initial={false}>
+            {(() => {
+              const fig = JURIS_FIGURES[coverIndex % JURIS_FIGURES.length];
+              if (!fig) return null;
+              const posClass =
+                fig.side === 'left'
+                  ? 'left-[4%] right-auto origin-bottom-left'
+                  : fig.side === 'right'
+                  ? 'right-[4%] left-auto origin-bottom-right'
+                  : 'left-1/2 -translate-x-1/2 origin-bottom';
+              const kenBurnsAnim = (coverIndex % 2 === 0)
+                ? 'ken-burns-a 12s ease-in-out infinite alternate'
+                : 'ken-burns-b 12s ease-in-out infinite alternate';
+              return (
+                <motion.img
+                  key={coverIndex}
+                  src={assetUrl(fig.url)}
+                  alt=""
+                  aria-hidden
+                  loading="eager"
+                  decoding="async"
+                  // @ts-expect-error non-standard yet-widely-supported hint
+                  fetchpriority="high"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.92 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ animation: kenBurnsAnim, willChange: 'transform' }}
+                  className={`absolute bottom-2 top-2 h-[calc(100%-16px)] w-auto max-w-[62%] sm:max-w-[52%] lg:max-w-[42%] object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.55)] ${posClass}`}
+                />
+              );
+            })()}
+          </AnimatePresence>
+        </div>
 
         {/* Escurecedor para legibilidade */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-emerald-950/25 to-emerald-950/70" />
