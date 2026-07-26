@@ -362,10 +362,20 @@ export function AdminHojeCards() {
                     key={r.key}
                     type="button"
                     onClick={() => r.userId && setDossie(r)}
-                    className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors"
+                    className={cn(
+                      'w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 active:bg-secondary transition-colors',
+                      novosKeys.has(r.key) && 'bg-emerald-500/10',
+                    )}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="font-body text-sm font-semibold text-foreground truncate">{r.title}</div>
+                        {novosKeys.has(r.key) && (
+                          <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-[1px] font-body text-[9.5px] font-bold text-emerald-400">
+                            NOVO
+                          </span>
+                        )}
+                      </div>
                       {r.subtitle && (
                         <div className="font-body text-[11px] text-muted-foreground truncate">{r.subtitle}</div>
                       )}
@@ -374,6 +384,7 @@ export function AdminHojeCards() {
                     <div className="font-body text-[11px] text-muted-foreground shrink-0">{r.meta}</div>
                   </button>
                 ))}
+
               </div>
             )}
           </div>
