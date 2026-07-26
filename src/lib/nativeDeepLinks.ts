@@ -115,15 +115,72 @@ export async function initDeepLinkRouter(navigate: NavigateFn) {
 
   try {
     listener = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      appUrlOpened = true;
       const target = parseDeepLink(url);
       if (target) {
-        // pequeno delay pra garantir que rotas estão registradas
         setTimeout(() => navigate(target), 50);
       }
     });
   } catch (e) {
     console.warn('DeepLink init falhou', e);
   }
+
+  // Deferred deep link — só na primeira execução após instalação
+  try {
+    if (localStorage.getItem(DEFERRED_CONSUMED_KEY) === '1') return;
+    // aguarda um pouco pra dar chance ao appUrlOpen "quente" chegar primeiro
+    setTimeout(() => consumeDeferredDeepLink(navigate), 800);
+  } catch { /* noop */ }
+}
+
+async function consumeDeferredDeepLink(navigate: NavigateFn) {
+  if (appUrlOpened) {
+    localStorage.setItem(DEFERRED_CONSUMED_KEY, '1');
+    return;
+  }
+  const platform = Capacitor.getPlatform();
+  try {
+    if (platform === 'android') {
+      // Play Install Referrer
+      try {
+        const mod: any = await import('@capacitor-community/play-install-referrer').catch(() => null);
+        const plugin = mod?.PlayInstallReferrer;
+        if (plugin?.getReferrerDetails) {
+          const res = await plugin.getReferrerDetails();
+          const referrer: string = res?.referrerUrl || res?.installReferrer || '';
+          const match = referrer.match(/vacatio_link=([^&]+)/);
+          if (match) {
+            const target = decodeURIComponent(match[1]);
+            if (target.startsWith('/')) {
+              localStorage.setItem(DEFERRED_CONSUMED_KEY, '1');
+              setTimeout(() => navigate(target), 100);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('PlayInstallReferrer indisponível', e);
+      }
+    } else if (platform === 'ios') {
+      // fingerprint-based consume via edge function
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data } = await supabase.functions.invoke('smart-link-claim', {
+          body: { action: 'consume' },
+        });
+        const target = (data as any)?.target_path;
+        if (target && typeof target === 'string' && target.startsWith('/')) {
+          localStorage.setItem(DEFERRED_CONSUMED_KEY, '1');
+          setTimeout(() => navigate(target), 100);
+          return;
+        }
+      } catch (e) {
+        console.warn('smart-link consume falhou', e);
+      }
+    }
+    // marca como consumido mesmo sem match, pra não repetir em toda abertura
+    localStorage.setItem(DEFERRED_CONSUMED_KEY, '1');
+  } catch { /* noop */ }
 }
 
 export function disposeDeepLinkRouter() {
@@ -133,6 +190,61 @@ export function disposeDeepLinkRouter() {
 
 /** Gera URL compartilhável (App Link) para um artigo. */
 export function buildArtigoShareUrl(slug: string, numero?: string): string {
-  const base = `https://vacatio.com.br/lei/${slug}`;
+  const base = `${SMART_LINK_ORIGIN}/ir/lei/${slug}`;
   return numero ? `${base}/art-${encodeURIComponent(numero)}` : base;
 }
+
+/**
+ * Gera um smart link universal `https://vacatio.com.br/ir/...` para qualquer
+ * tipo de conteúdo compartilhável no app.
+ *
+ * Exemplos:
+ *   buildSmartLink('lei', { slug: 'cf88', artigo: '5' })
+ *   buildSmartLink('noticia', { id: '123' })
+ *   buildSmartLink('livro', { id: '42' })
+ *   buildSmartLink('radar/pl', { id: '99' })
+ */
+export function buildSmartLink(
+  tipo:
+    | 'lei'
+    | 'noticia'
+    | 'livro'
+    | 'frase'
+    | 'resumo'
+    | 'dicionario'
+    | 'radar/pl'
+    | 'radar/deputado'
+    | 'aprender',
+  params: { slug?: string; id?: string; artigo?: string } = {},
+): string {
+  const base = SMART_LINK_ORIGIN + '/ir';
+  switch (tipo) {
+    case 'lei': {
+      if (!params.slug) return `${base}/lei`;
+      const path = `${base}/lei/${params.slug}`;
+      return params.artigo ? `${path}/art-${encodeURIComponent(params.artigo)}` : path;
+    }
+    case 'noticia':
+    case 'livro':
+    case 'frase':
+    case 'resumo':
+    case 'dicionario':
+    case 'aprender':
+      return params.id ? `${base}/${tipo}/${encodeURIComponent(params.id)}` : `${base}/${tipo}`;
+    case 'radar/pl':
+    case 'radar/deputado':
+      return params.id ? `${base}/${tipo}/${encodeURIComponent(params.id)}` : `${base}/radar-360`;
+    default:
+      return base;
+  }
+}
+
+/**
+ * Converte um caminho "smart" (com ou sem prefixo /ir/) em rota interna do app.
+ * Usa a mesma lógica do parseDeepLink pra evitar divergência.
+ */
+export function parseSmartPath(path: string): string | null {
+  const fake = `${SMART_LINK_ORIGIN}${path.startsWith('/') ? path : '/' + path}`;
+  return parseDeepLink(fake);
+}
+
