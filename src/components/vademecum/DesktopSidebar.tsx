@@ -93,7 +93,12 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
         return (
           <button
             key={item.id}
-            onClick={() => !isDisabled && handleItemClick(item)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isDisabled) handleItemClick(item);
+            }}
             disabled={isDisabled}
             title={collapsed ? item.label : undefined}
             className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3 mx-1'} py-1.5 rounded-lg text-[13px] font-body transition-colors ${
