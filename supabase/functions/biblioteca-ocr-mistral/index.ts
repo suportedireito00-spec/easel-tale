@@ -737,8 +737,7 @@ async function handleRefino(body: RefinoBody) {
       const conteudo = partes.join("\n\n");
       // Descarta capítulos-fantasma (título vindo do SUMÁRIO impresso sem página real de conteúdo).
       // Sem isso o leitor mostra só a capa e "pula" para o próximo capítulo.
-      const textoUtil = conteudo.replace(/<!--[^>]*-->/g, "").replace(/\s+/g, " ").trim();
-      if (textoUtil.length < 40) {
+      if (!temTextoUtil(conteudo)) {
         console.warn(`[refino] descartando capítulo vazio "${c.titulo}" (páginas ${inicio}-${fim})`);
         continue;
       }
@@ -1054,7 +1053,8 @@ function validarERepararSumario(
   const totalPaginas = pages.length;
   let capitulos = (sumario.capitulos || [])
     .map((c, i) => ({ ...c, numero: c.numero ?? i + 1, pagina_inicio: clampNum(Number(c.pagina_inicio) || 1, 1, totalPaginas) }))
-    .filter((c) => tituloCapituloAceitavel(c.titulo, c.pagina_inicio, pageClasses));
+    .filter((c) => tituloCapituloAceitavel(c.titulo, c.pagina_inicio, pageClasses))
+    .filter((c) => paginaTemCorpoDeCapitulo(pages[c.pagina_inicio - 1] || ""));
 
   // Fallback: se o AI colapsou tudo em poucos capítulos mas o OCR extraiu um sumário rico,
   // reconstrói os capítulos a partir do sumário extraído (títulos + páginas reais).
@@ -1235,10 +1235,23 @@ function normalizarTexto(s: string) {
 function temTextoUtil(md: string | null | undefined, min = 40) {
   const texto = String(md || "")
     .replace(/<!--[^>]*-->/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[[^\]]+\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim();
   return texto.length >= min && /[a-zà-úç]{3,}/i.test(texto);
+}
+
+function paginaTemCorpoDeCapitulo(md: string) {
+  const corpo = String(md || "")
+    .replace(/<!--[^>]*-->/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .split("\n")
+    .filter((linha) => !/^\s*#{1,6}\s+/.test(linha))
+    .join("\n");
+  return temTextoUtil(corpo, 80);
 }
 
 function unirPaginas(a: number[], b: number[], totalPaginas: number) {
