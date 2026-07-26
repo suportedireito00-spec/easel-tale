@@ -9,6 +9,8 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { evolution } from '../_shared/evolution.ts';
 import { sanitizeFirstName } from '../_shared/nomeSanitizer.ts';
 import { generateLembreteText } from '../_shared/lembreteAiText.ts';
+import { processarAdminAlertas } from '../_shared/adminAlertas.ts';
+
 
 const MAX_RETRIES = 2;
 
