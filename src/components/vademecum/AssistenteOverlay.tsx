@@ -220,6 +220,12 @@ const AssistenteOverlay = ({ open, onClose }: Props) => {
   const sendMessage = async () => {
     const text = input.trim();
     if ((!text && !attachment) || loading) return;
+    track('chat_juridico_mensagem_enviada', {
+      has_attachment: !!attachment,
+      attachment_mime: attachment?.mime?.split(';')[0] || undefined,
+      web_search: webSearch,
+      message_length: text.length,
+    });
     const userMsg: Message = {
       id: crypto.randomUUID(), role: 'user',
       content: text || (attachment ? `📎 ${attachment.name}` : ''),
