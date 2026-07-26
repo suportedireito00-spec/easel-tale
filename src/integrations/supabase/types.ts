@@ -7444,6 +7444,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_lista_dia: {
+        Args: { _dia: string; _tipo: string }
+        Returns: {
+          at: string
+          email: string
+          key: string
+          subtitle: string
+          title: string
+          user_id: string
+        }[]
+      }
+      admin_metricas_dia: { Args: { _dia: string }; Returns: Json }
       admin_user_auth_providers: {
         Args: { _ids: string[] }
         Returns: {
