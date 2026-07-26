@@ -292,8 +292,11 @@ const EstudosHub = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.15 + i * 0.04 }}
                   whileTap={isAvailable ? { scale: 0.95 } : undefined}
-                  onClick={() => isAvailable && navigate(f.route!)}
+                  onClick={() => { track('estudos_feature_click', { feature_id: f.id, feature_label: f.label, available: isAvailable }); if (isAvailable) navigate(f.route!); }}
                   disabled={!isAvailable}
+                  data-track="estudos_feature_click"
+                  data-feature-id={f.id}
+                  data-feature-label={f.label}
                   className={`relative aspect-square flex flex-col items-center justify-center gap-2 p-2 rounded-2xl border border-border bg-card transition-all ${
                     isAvailable ? 'hover:border-primary/30 hover:shadow-sm' : 'opacity-60'
                   }`}
