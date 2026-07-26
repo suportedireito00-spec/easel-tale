@@ -250,7 +250,7 @@ const AdminLeituraNativa = () => {
                         const b = badgeFor(it);
                         const B = b.Icon;
                         const upd = it.leitura?.refino_updated_at ?? it.leitura?.updated_at;
-                        const podePrev = it.leitura?.status === 'pronto' && (it.leitura?.conteudo_md_refinado || it.leitura?.conteudo_md);
+                        const podePrev = it.leitura?.status === 'pronto';
                         return (
                           <div key={k} className="rounded-xl border border-white/10 bg-black/40 p-3 flex gap-3 items-start">
                             <input type="checkbox" className="mt-1 accent-yellow-400"
