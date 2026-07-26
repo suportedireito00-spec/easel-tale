@@ -168,10 +168,20 @@ export function AdminHojeCards() {
   }, [open]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(new Date()) });
+    const hoje = new Date();
+    const { data } = await supabase.rpc('admin_metricas_dia' as any, { _dia: isoDate(hoje) });
     const m = (data as any) || {};
-    setCounts({ online: m.online || 0, cadastros: m.cadastros || 0, trial: m.trial || 0 });
+    const novos: Record<CardId, number> = { online: m.online || 0, cadastros: m.cadastros || 0, trial: m.trial || 0 };
+    setCounts(novos);
+    // Primeira visita do dia: considera tudo como já visto (sem badge)
+    (['online', 'cadastros', 'trial'] as CardId[]).forEach((id) => {
+      if (!localStorage.getItem(seenStorageKey(id, hoje))) {
+        writeSeen(id, hoje, { count: novos[id], keys: [] });
+        setSeenCounts((c) => ({ ...c, [id]: novos[id] }));
+      }
+    });
   }, []);
+
 
   useEffect(() => {
     load();
