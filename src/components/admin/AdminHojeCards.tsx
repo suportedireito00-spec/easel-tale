@@ -60,14 +60,23 @@ const ProviderTag = ({ provider }: { provider?: string | null }) => {
   );
 };
 
-const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+const dayRange = (d: Date) => {
+  const start = new Date(d);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start: start.toISOString(), end: end.toISOString() };
 };
+
+const startOfToday = () => dayRange(new Date()).start;
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 const hora = (v?: string | null) =>
   v ? new Date(v).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 export function AdminHojeCards() {
   const [counts, setCounts] = useState<Record<CardId, number>>({ online: 0, cadastros: 0, trial: 0 });
@@ -75,6 +84,7 @@ export function AdminHojeCards() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [dossie, setDossie] = useState<Row | null>(null);
+  const [dia, setDia] = useState<Date>(() => new Date());
 
   const load = useCallback(async () => {
     const since = startOfToday();
@@ -97,18 +107,18 @@ export function AdminHojeCards() {
     return () => clearInterval(t);
   }, [load]);
 
-  const openCard = async (id: CardId) => {
-    setOpen(id);
+  const fetchRows = useCallback(async (id: CardId, date: Date) => {
     setLoading(true);
     setRows([]);
-    const since = startOfToday();
+    const { start, end } = dayRange(date);
     const pendingIds: string[] = [];
     try {
       if (id === 'online') {
         const { data } = await supabase
           .from('user_activity_log' as any)
           .select('user_id, email, display_name, current_route, last_seen_at')
-          .gte('last_seen_at', since)
+          .gte('last_seen_at', start)
+          .lt('last_seen_at', end)
           .order('last_seen_at', { ascending: false })
           .limit(300);
         const seen = new Set<string>();
@@ -128,7 +138,8 @@ export function AdminHojeCards() {
         const { data } = await supabase
           .from('profiles' as any)
           .select('id, full_name, email, created_at')
-          .gte('created_at', since)
+          .gte('created_at', start)
+          .lt('created_at', end)
           .order('created_at', { ascending: false })
           .limit(300);
         setRows(
@@ -145,7 +156,8 @@ export function AdminHojeCards() {
         const { data } = await supabase
           .from('play_subscriptions' as any)
           .select('id, user_id, product_id, base_plan_id, status, created_at')
-          .gte('created_at', since)
+          .gte('created_at', start)
+          .lt('created_at', end)
           .order('created_at', { ascending: false })
           .limit(300);
         setRows(
@@ -167,7 +179,27 @@ export function AdminHojeCards() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const openCard = (id: CardId) => {
+    const hoje = new Date();
+    setOpen(id);
+    setDia(hoje);
+    fetchRows(id, hoje);
   };
+
+  const selecionarDia = (d: Date) => {
+    setDia(d);
+    if (open) fetchRows(open, d);
+  };
+
+  const dias = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    return d;
+  });
+
 
   const CARDS: { id: CardId; label: string; icon: any }[] = [
     { id: 'online', label: 'Online hoje', icon: Radio },
@@ -176,10 +208,19 @@ export function AdminHojeCards() {
   ];
 
   const titles: Record<CardId, string> = {
-    online: 'Online hoje',
-    cadastros: 'Cadastrados hoje',
-    trial: 'Iniciaram assinatura teste hoje',
+    online: 'Online',
+    cadastros: 'Cadastrados',
+    trial: 'Iniciaram assinatura teste',
   };
+
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const rotuloDia = sameDay(dia, hoje)
+    ? 'Hoje'
+    : sameDay(dia, ontem)
+      ? 'Ontem'
+      : dia.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 
   return (
     <>
@@ -201,19 +242,55 @@ export function AdminHojeCards() {
         <SheetContent side="bottom" className="rounded-t-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-0 bg-background border-border">
           <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
             <SheetTitle className="font-display text-base font-bold text-foreground">
-              {open ? titles[open] : ''}
+              {open ? `${titles[open]} · ${rotuloDia}` : ''}
             </SheetTitle>
             <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">
               {loading ? 'Carregando…' : `${rows.length} registro${rows.length === 1 ? '' : 's'}`}
             </p>
           </SheetHeader>
+
+          <div className="border-b border-border/50 bg-background/95 sticky top-0 z-10">
+            <div className="flex gap-2 overflow-x-auto px-3 py-3 scrollbar-none">
+              {dias.map((d) => {
+                const ativo = sameDay(d, dia);
+                const ehHoje = sameDay(d, hoje);
+                const ehOntem = sameDay(d, ontem);
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => selecionarDia(d)}
+                    className={cn(
+                      'shrink-0 min-w-[64px] rounded-2xl border px-3 py-2.5 text-center transition-colors',
+                      ativo
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-secondary/30 border-border/60 text-muted-foreground hover:bg-secondary/60',
+                    )}
+                  >
+                    <div className="font-body text-[10.5px] uppercase tracking-wide opacity-80">
+                      {ehHoje ? 'Hoje' : ehOntem ? 'Ontem' : DIAS[d.getDay()]}
+                    </div>
+                    <div className={cn('font-display text-lg font-bold leading-none mt-1', ativo ? '' : 'text-foreground')}>
+                      {String(d.getDate()).padStart(2, '0')}
+                    </div>
+                    <div className="font-body text-[10px] opacity-70 mt-0.5">
+                      {d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="p-3">
             {loading ? (
               <div className="flex justify-center py-10 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin" />
               </div>
             ) : rows.length === 0 ? (
-              <p className="font-body text-sm text-muted-foreground text-center py-10">Nenhum registro hoje.</p>
+              <p className="font-body text-sm text-muted-foreground text-center py-10">
+                Nenhum registro em {rotuloDia.toLowerCase()}.
+              </p>
             ) : (
               <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
                 {rows.map((r) => (
