@@ -368,6 +368,30 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
     setShowPremiumGate(true);
   };
 
+  /**
+   * Gate padrão das funções do artigo: 3 usos/mês na conta gratuita.
+   * O mesmo artigo não consome cota duas vezes (contagem por `ref_key`).
+   */
+  const gateFeature = async (
+    featureKey: string,
+    gateKey: PremiumFeatureKey,
+    label: string,
+    action: () => void,
+  ) => {
+    if (isPremium) { action(); return; }
+    const ref = `${tabelaNome}_${artigo?.numero}`;
+    try {
+      const ok = await canUseRef(featureKey, ref);
+      if (!ok) {
+        openPremiumGate(gateKey, `Você usou seus 3 usos gratuitos deste mês em ${label}. Comece 7 dias grátis para liberar.`);
+        return;
+      }
+      await registerUsage(featureKey, ref);
+    } catch { /* falha de rede: não bloqueia */ }
+    action();
+  };
+
+
   // ─── Grifo Mágico state ───
   interface MagicGrifo {
     trechoExato: string;
@@ -801,13 +825,13 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
       if (res.status === 402 || errorBody.includes('daily_narration_limit_reached')) {
         setNarracaoLoading(false);
         setNarracaoStepIdx(0);
-        openPremiumGate('narracao', 'Você atingiu o limite gratuito de narrações por dia. Assine para ouvir sem limite.');
+        openPremiumGate('narracao', 'Você usou suas 3 narrações gratuitas deste mês. Comece 7 dias grátis para ouvir sem limite.');
         return;
       }
       if (res.status === 401 || errorBody.includes('authentication_required')) {
         setNarracaoLoading(false);
         setNarracaoStepIdx(0);
-        openPremiumGate('narracao', 'Entre na sua conta para usar a narração gratuita diária.');
+        openPremiumGate('narracao', 'Entre na sua conta para usar as narrações gratuitas.');
         return;
       }
       console.error(`Erro ao gerar narração [${res.status}]:`, errorBody);
@@ -862,7 +886,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
       const articleRefKey = tabelaNome && artigo?.numero ? `${tabelaNome}_${artigo.numero}` : null;
       const iniciandoReproducao = !narracaoPlaying && !!articleRefKey;
       if (iniciandoReproducao && !isPremium && !(await canUseRef('narracao', articleRefKey))) {
-        openPremiumGate('narracao', 'Você atingiu o limite gratuito de narrações por dia. Assine para ouvir sem limite.');
+        openPremiumGate('narracao', 'Você usou suas 3 narrações gratuitas deste mês. Comece 7 dias grátis para ouvir sem limite.');
         return;
       }
 
@@ -2346,9 +2370,10 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
         </AnimatePresence>
 
         <Tabs value={activeTab} onValueChange={(v) => {
-          if (!isPremium && (v === 'explicacao' || v === 'exemplo' || v === 'termos')) {
-            if (!canUse('explicacao')) { openPremiumGate('explicacao', 'Você atingiu o limite de 3 explicações/mês. Assine para desbloquear.'); return; }
-            registerUsage('explicacao', `${tabelaNome}_${artigo?.numero}`);
+          if (!isPremium && (v === 'explicacao' || v === 'exemplo')) {
+            const label = v === 'explicacao' ? 'Explicação' : 'Exemplo';
+            gateFeature(v, v as PremiumFeatureKey, label, () => setActiveTab(v));
+            return;
           }
           setActiveTab(v);
         }} className="flex flex-col">
@@ -2868,38 +2893,32 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
                       setActiveActionMenu(null);
                       if (!requireOnline('Jurisprudência')) return;
                       if (!tabelaNome || !artigo?.numero) { toast.error('Artigo não identificado'); return; }
-                      navigate(`/jurisprudencia/${tabelaNome}/${encodeURIComponent(String(artigo.numero))}`);
+                      gateFeature('jurisprudencia', 'jurisprudencia', 'Jurisprudência', () =>
+                        navigate(`/jurisprudencia/${tabelaNome}/${encodeURIComponent(String(artigo.numero))}`),
+                      );
                     } },
                     { icon: Play, label: 'Videoaulas', desc: 'Aulas em vídeo sobre este artigo', color: '#EF4444', onClick: () => {
                       setActiveActionMenu(null);
                       if (!requireOnline('Videoaulas')) return;
-                      if (!isPremium && !canUse('videoaula')) { openPremiumGate('videoaula', 'Você atingiu o limite gratuito de videoaulas. Comece 7 dias grátis para ver sem limite.'); return; }
-                      if (!isPremium) registerUsage('videoaula', `${tabelaNome}_${artigo?.numero}`);
-                      setShowVideoaulasListSheet(true);
+                      gateFeature('videoaula', 'videoaula', 'Videoaulas', () => setShowVideoaulasListSheet(true));
                     } },
                     
-                    { icon: BookOpen, label: 'Termos jurídicos', desc: 'Vocabulário do artigo explicado', color: '#F97316', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Termos jurídicos')) return; if (!isPremium && !canUse('explicacao')) { openPremiumGate('termos', 'Termos jurídicos são exclusivos para assinantes.'); return; } setShowTermosSheet(true); } },
-                    { icon: MessageCircle, label: 'Perguntar', desc: 'Tire dúvidas com a IA', color: '#A855F7', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Perguntar à IA')) return; if (!isPremium) { openPremiumGate('perguntar', 'Pergunte à IA sobre qualquer artigo. Assine para desbloquear.'); return; } setShowPerguntarSheet(true); } },
-                    ...(tabelaNome ? [{ icon: Network, label: 'Grafo de conexões', desc: 'Ver relações do artigo', color: '#10B981', onClick: () => { setActiveActionMenu(null); setShowGrafo(true); } }] : []),
+                    { icon: BookOpen, label: 'Termos jurídicos', desc: 'Vocabulário do artigo explicado', color: '#F97316', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Termos jurídicos')) return; gateFeature('termos', 'termos', 'Termos jurídicos', () => setShowTermosSheet(true)); } },
+                    { icon: MessageCircle, label: 'Perguntar', desc: 'Tire dúvidas com a IA', color: '#A855F7', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Perguntar à IA')) return; gateFeature('perguntar', 'perguntar', 'Perguntar à IA', () => setShowPerguntarSheet(true)); } },
+                    ...(tabelaNome ? [{ icon: Network, label: 'Grafo de conexões', desc: 'Ver relações do artigo', color: '#10B981', onClick: () => { setActiveActionMenu(null); gateFeature('grafo', 'grafo', 'Grafo de conexões', () => setShowGrafo(true)); } }] : []),
                     { icon: Copy, label: 'Copiar artigo', desc: 'Texto para a área de transferência', color: '#8B5CF6', onClick: () => { setActiveActionMenu(null); handleCopy(); } },
-                    { icon: Bell, label: 'Lembretes', desc: 'Avisar ao chegar em um local', color: '#F59E0B', onClick: () => { setActiveActionMenu(null); import('./LembretesArtigoSheet'); setShowLembretesLocal(true); } },
+                    { icon: Bell, label: 'Lembretes', desc: 'Avisar ao chegar em um local', color: '#F59E0B', onClick: () => { setActiveActionMenu(null); import('./LembretesArtigoSheet'); gateFeature('lembretes', 'lembretes', 'Lembretes', () => setShowLembretesLocal(true)); } },
                     { icon: Download, label: 'Baixar artigo', desc: 'PDF ou imagem, lei seca ou comentado', color: '#0EA5E9', onClick: () => { setActiveActionMenu(null); setShowBaixarSheet(true); } },
                     { icon: Share2, label: 'Compartilhar', desc: 'Enviar para outro app', color: '#06B6D4', onClick: () => { setActiveActionMenu(null); setShowSharePanel(p => !p); } },
                   ];
 
-                  const gateGrifo = (key: 'grifo_manual' | 'grifo_magico' | 'grifo_voz' | 'grifo_foto', label: string, action: () => void) => {
-                    if (!isPremium && !canUse(key)) {
-                      openPremiumGate('grifo', `${label} é uma função para assinantes. Comece 7 dias grátis para liberar.`);
-                      return;
-                    }
-                    if (!isPremium) registerUsage(key, `${tabelaNome}_${artigo?.numero}`);
-                    action();
-                  };
+                  const gateGrifo = (label: string, action: () => void) =>
+                    gateFeature('grifo', 'grifo', label, action);
                   const grifarItems = [
-                    { icon: Highlighter, label: highlightMode ? 'Desativar grifo manual' : 'Grifo manual', desc: 'Marcar com o dedo', color: '#EC4899', active: highlightMode, onClick: () => { setActiveActionMenu(null); if (highlightMode) { toggleMode(); return; } gateGrifo('grifo_manual', 'Grifo manual', () => toggleMode()); } },
-                    { icon: Sparkles, label: 'Grifo mágico (IA)', desc: 'Destaques automáticos', color: '#F59E0B', active: magicMode, spin: magicLoading, badge: magicHighlights.length, onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_magico', 'Grifo mágico', () => handleToggleMagic()); } },
-                    { icon: Mic, label: 'Grifar por voz', desc: 'Dite o trecho a destacar', color: '#EAB308', onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_voz', 'Grifar por voz', () => setVoiceGrifoActive(true)); } },
-                    { icon: Camera, label: 'Grifar de foto', desc: 'OCR de imagem', color: '#3B82F6', onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_foto', 'Grifar de foto', () => setShowGrifoFoto(true)); } },
+                    { icon: Highlighter, label: highlightMode ? 'Desativar grifo manual' : 'Grifo manual', desc: 'Marcar com o dedo', color: '#EC4899', active: highlightMode, onClick: () => { setActiveActionMenu(null); if (highlightMode) { toggleMode(); return; } gateGrifo('Grifar', () => toggleMode()); } },
+                    { icon: Sparkles, label: 'Grifo mágico (IA)', desc: 'Destaques automáticos', color: '#F59E0B', active: magicMode, spin: magicLoading, badge: magicHighlights.length, onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => handleToggleMagic()); } },
+                    { icon: Mic, label: 'Grifar por voz', desc: 'Dite o trecho a destacar', color: '#EAB308', onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => setVoiceGrifoActive(true)); } },
+                    { icon: Camera, label: 'Grifar de foto', desc: 'OCR de imagem', color: '#3B82F6', onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => setShowGrifoFoto(true)); } },
                     { icon: Trash2, label: 'Apagar grifos', desc: 'Escolha por cor ou apague todos', color: '#EF4444', badge: eraseSheetHighlights.length, onClick: () => { setActiveActionMenu(null); setShowEraseSheet(true); } },
                   ];
                   const isGrifar = activeActionMenu === 'grifar';
@@ -3029,7 +3048,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
               <div aria-hidden="true" />
             ) : (
               <button
-                onClick={() => setShowPraticarSheet(true)}
+                onClick={() => gateFeature('praticar', 'praticar', 'Praticar', () => setShowPraticarSheet(true))}
                 className="flex flex-col items-center justify-end gap-1.5 py-1.5 text-foreground hover:text-primary transition-colors"
               >
                 <Target className="w-7 h-7 sm:w-8 sm:h-8" />
@@ -3114,7 +3133,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
               <div aria-hidden="true" />
             ) : (
               <button
-                onClick={() => { if (!isPremium) { openPremiumGate('anotacoes', 'Anotações pessoais em cada artigo. Assine para desbloquear.'); return; } setShowAnotacoesSheet(true); setShowFontControls(false); }}
+                onClick={() => gateFeature('lei_anotacao', 'anotacoes', 'Anotações', () => { setShowAnotacoesSheet(true); setShowFontControls(false); })}
                 className="relative flex flex-col items-center justify-end gap-1.5 py-1.5 text-foreground hover:text-primary transition-colors"
               >
                 <span className="relative">
@@ -3523,7 +3542,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
               <span className="font-body text-sm font-medium max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-0">Funções</span>
             </button>
             <button
-              onClick={() => setShowPraticarSheet(true)}
+              onClick={() => gateFeature('praticar', 'praticar', 'Praticar', () => setShowPraticarSheet(true))}
               className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-foreground hover:bg-secondary transition-colors"
               title="Praticar"
               aria-label="Praticar"
@@ -3534,7 +3553,7 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
           </div>
           <div className="fixed right-4 top-1/2 -translate-y-1/2 z-[10000] flex flex-col gap-2 rounded-2xl bg-card/95 backdrop-blur-md border border-border p-2 shadow-xl shadow-black/40">
             <button
-              onClick={() => { if (!isPremium) { openPremiumGate('anotacoes', 'Anotações pessoais em cada artigo. Assine para desbloquear.'); return; } setShowAnotacoesSheet(true); }}
+              onClick={() => gateFeature('lei_anotacao', 'anotacoes', 'Anotações', () => setShowAnotacoesSheet(true))}
               className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-foreground hover:bg-secondary transition-colors"
               title="Anotações"
               aria-label="Anotações"

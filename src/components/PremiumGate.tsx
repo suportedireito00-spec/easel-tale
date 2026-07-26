@@ -12,6 +12,7 @@ export type PremiumFeatureKey =
   | 'narracao' | 'explicacao' | 'exemplo' | 'termos' | 'perguntar'
   | 'jurisprudencia' | 'videoaula' | 'grafo' | 'mapa_mental' | 'lembretes'
   | 'baixar' | 'anotacoes' | 'grifo' | 'flashcards' | 'questoes'
+  | 'praticar' | 'favorito'
   | 'radar' | 'blog' | 'biblioteca' | 'aprender' | 'horus' | 'default';
 
 type FeatureInfo = { title: string; description: string; icon: LucideIcon };
@@ -32,6 +33,8 @@ const FEATURES: Record<PremiumFeatureKey, FeatureInfo> = {
   grifo:         { title: 'Grifos ilimitados', description: 'Grife trechos manualmente, por voz, foto ou com a IA. Assine para desbloquear.', icon: Highlighter },
   flashcards:    { title: 'Flashcards ilimitados', description: 'Estude com flashcards gerados automaticamente pela IA. Assine para desbloquear.', icon: Layers },
   questoes:      { title: 'Questões OAB/concurso', description: 'Pratique com questões geradas a partir de qualquer conteúdo. Assine para desbloquear.', icon: HelpCircle },
+  praticar:      { title: 'Praticar sem limite', description: 'Questões e flashcards gerados a partir de qualquer artigo. Assine para desbloquear.', icon: Layers },
+  favorito:      { title: 'Favoritos ilimitados', description: 'Salve quantos artigos quiser nos seus favoritos. Assine para desbloquear.', icon: Highlighter },
   radar:         { title: 'Radar Legislativo', description: 'Acompanhe projetos de lei em tempo real com análise da IA. Assine para desbloquear.', icon: Radar },
   blog:          { title: 'Blogger Jurídico completo', description: 'Leia todos os artigos exclusivos do blog sem limites. Assine para desbloquear.', icon: Newspaper },
   biblioteca:    { title: 'Biblioteca completa', description: 'Acesse a biblioteca de clássicos e obras jurídicas na íntegra. Assine para desbloquear.', icon: Library },
@@ -78,11 +81,11 @@ const PremiumGate = ({
             onClick={onClose}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 24 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed inset-0 z-[10051] flex items-center justify-center px-4 py-6 pointer-events-none"
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+            className="fixed inset-x-0 bottom-0 z-[10051] flex items-end justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-none"
           >
             <div className="relative w-full max-w-[340px] bg-card border border-border rounded-3xl overflow-hidden shadow-2xl shadow-primary/10 pointer-events-auto">
               {/* Header banner */}
