@@ -5,7 +5,7 @@ import {
   Gamepad2, Brain, BookA, MessageCircle, BellRing, Mic, Lightbulb, Building2,
   Rss, Palette, Users, GitBranch, Github, ImageIcon, KeyRound, Bug, Newspaper,
   Quote, Monitor, Send, RefreshCcw, Lock, Wrench, FileText, Crown, Search, Target, MapPin, PlayCircle,
-  Sparkles, UserPlus, GraduationCap, Scale, Store,
+  Sparkles, UserPlus, GraduationCap, Scale, Store, Mail, FileSignature,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -54,6 +54,8 @@ const PREFETCH: Record<string, () => Promise<unknown>> = {
   '/radar/deputados': () => import('./RadarDeputados'),
   '/newsletter': () => import('./Newsletter'),
   '/configuracoes': () => import('./Configuracoes'),
+  '/ferramentas/peticao-inicial': () => import('./PeticaoInicial'),
+  '/anotacoes/audio': () => import('./AnotacoesAudio'),
 };
 const prefetched = new Set<string>();
 const prefetching = new Map<string, Promise<unknown>>();
@@ -100,6 +102,17 @@ type Category = {
 };
 
 const CATEGORIES: Category[] = [
+  {
+    id: 'exclusivas-admin',
+    title: 'Funções exclusivas (Admin)',
+    desc: 'Ferramentas em testes, visíveis apenas para admins',
+    icon: Crown,
+    items: [
+      { id: 'admin-newsletter', label: 'Newsletter', icon: Mail, desc: 'Receba um resumo jurídico diário no e-mail', route: '/newsletter' },
+      { id: 'admin-peticao-inicial', label: 'Petição Inicial', icon: FileSignature, desc: 'Gere petições com IA e jurisprudência real do STF/STJ', route: '/ferramentas/peticao-inicial' },
+      { id: 'admin-gravar-aula', label: 'Gravar aula', icon: Mic, desc: 'Grave aulas longas com resumo automático por IA', route: '/anotacoes/audio' },
+    ],
+  },
   {
     id: 'push',
     title: 'Notificações Push',
