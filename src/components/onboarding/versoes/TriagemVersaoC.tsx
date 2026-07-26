@@ -109,10 +109,23 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
       )}
 
       {/* Stack */}
-      <div className="relative flex-1 flex items-stretch justify-center px-3 pt-3 pb-4 sm:pt-4 sm:pb-6">
+      <div
+        className="relative flex-1 flex items-stretch justify-center px-3 pt-3 sm:pt-4"
+        style={{
+          paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 20px)',
+        }}
+      >
         <AnimatePresence mode="wait">
           {step === 'abertura' ? (
             <AberturaCinematografica key="abertura" onDone={() => advance({})} muted={muted} toggleMute={toggleMute} />
+          ) : step === 'features' ? (
+            <Suspense key="features" fallback={<div className="absolute inset-0 bg-black" />}>
+              <CadastroFeaturesReel
+                nome={data.nome}
+                onDone={() => onFinished(data)}
+                playSfx={playSfx}
+              />
+            </Suspense>
           ) : (
             <motion.div
               key={step}
@@ -121,7 +134,7 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
               exit={{ x: -340, rotate: -6, opacity: 0, scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 190, damping: 24 }}
               className="relative w-full max-w-lg rounded-[36px] overflow-hidden flex flex-col shadow-2xl"
-              style={{ background: bg.grad, color: bg.accent, minHeight: '82dvh' }}
+              style={{ background: bg.grad, color: bg.accent, minHeight: '78dvh' }}
             >
               {/* Textura de filósofos suave no card */}
               <FilosofosTextura />
@@ -133,7 +146,7 @@ export default function TriagemVersaoC({ open, onFinished }: Props) {
                 </span>
               </div>
 
-              <CardContent step={step as Exclude<Step, 'abertura'>} data={data} setData={setData} advance={advance} playSfx={playSfx} bg={bg} />
+              <CardContent step={step as Exclude<Step, 'abertura' | 'features'>} data={data} setData={setData} advance={advance} playSfx={playSfx} bg={bg} />
             </motion.div>
           )}
         </AnimatePresence>
