@@ -190,51 +190,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isNative = Capacitor.isNativePlatform();
 
     if (isNative) {
-      // 1) Caminho preferencial: Credential Manager (bottom sheet nativo).
-      try {
-        const { SocialLogin } = await import('@capgo/capacitor-social-login');
-
-        if (!socialLoginInit) {
-          socialLoginInit = SocialLogin.initialize({
-            google: { webClientId: GOOGLE_WEB_CLIENT_ID },
-          })
-            .then(() => undefined)
-            .catch((error) => {
-              socialLoginInit = null;
-              throw error;
-            });
-        }
-        await socialLoginInit;
-
-        const res: any = await SocialLogin.login({
-          provider: 'google',
-          options: {
-            scopes: ['profile', 'email'],
-            forceRefreshToken: false,
-          },
-        });
-
-        const idToken: string | undefined =
-          res?.result?.idToken ?? res?.result?.authentication?.idToken;
-
-        if (idToken) {
-          const { error } = await supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: idToken,
-          });
-          if (error) {
-            console.error('[SocialLogin] Supabase rejeitou idToken', error);
-            return { error: new Error(error.message) };
-          }
-          return { error: null };
-        }
-        // Sem idToken → cai no fallback abaixo.
-        console.warn('[SocialLogin] idToken ausente, tentando fallback GoogleAuth');
-      } catch (e: any) {
-        console.warn('[SocialLogin] Falhou, tentando fallback GoogleAuth', e);
-      }
-
-      // 2) Fallback: plugin legado (mantido temporariamente).
+      // Login Google nativo via GoogleAuth (sem Credential Manager).
+      // O Credential Manager foi removido porque disparava o prompt de
+      // "Ativar login por biometria" e o dialog herdava o windowBackground
+      // amarelo do splash.
       try {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
 
