@@ -2893,38 +2893,32 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
                       setActiveActionMenu(null);
                       if (!requireOnline('Jurisprudência')) return;
                       if (!tabelaNome || !artigo?.numero) { toast.error('Artigo não identificado'); return; }
-                      navigate(`/jurisprudencia/${tabelaNome}/${encodeURIComponent(String(artigo.numero))}`);
+                      gateFeature('jurisprudencia', 'jurisprudencia', 'Jurisprudência', () =>
+                        navigate(`/jurisprudencia/${tabelaNome}/${encodeURIComponent(String(artigo.numero))}`),
+                      );
                     } },
                     { icon: Play, label: 'Videoaulas', desc: 'Aulas em vídeo sobre este artigo', color: '#EF4444', onClick: () => {
                       setActiveActionMenu(null);
                       if (!requireOnline('Videoaulas')) return;
-                      if (!isPremium && !canUse('videoaula')) { openPremiumGate('videoaula', 'Você atingiu o limite gratuito de videoaulas. Comece 7 dias grátis para ver sem limite.'); return; }
-                      if (!isPremium) registerUsage('videoaula', `${tabelaNome}_${artigo?.numero}`);
-                      setShowVideoaulasListSheet(true);
+                      gateFeature('videoaula', 'videoaula', 'Videoaulas', () => setShowVideoaulasListSheet(true));
                     } },
                     
-                    { icon: BookOpen, label: 'Termos jurídicos', desc: 'Vocabulário do artigo explicado', color: '#F97316', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Termos jurídicos')) return; if (!isPremium && !canUse('explicacao')) { openPremiumGate('termos', 'Termos jurídicos são exclusivos para assinantes.'); return; } setShowTermosSheet(true); } },
-                    { icon: MessageCircle, label: 'Perguntar', desc: 'Tire dúvidas com a IA', color: '#A855F7', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Perguntar à IA')) return; if (!isPremium) { openPremiumGate('perguntar', 'Pergunte à IA sobre qualquer artigo. Assine para desbloquear.'); return; } setShowPerguntarSheet(true); } },
-                    ...(tabelaNome ? [{ icon: Network, label: 'Grafo de conexões', desc: 'Ver relações do artigo', color: '#10B981', onClick: () => { setActiveActionMenu(null); setShowGrafo(true); } }] : []),
+                    { icon: BookOpen, label: 'Termos jurídicos', desc: 'Vocabulário do artigo explicado', color: '#F97316', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Termos jurídicos')) return; gateFeature('termos', 'termos', 'Termos jurídicos', () => setShowTermosSheet(true)); } },
+                    { icon: MessageCircle, label: 'Perguntar', desc: 'Tire dúvidas com a IA', color: '#A855F7', onClick: () => { setActiveActionMenu(null); if (!requireOnline('Perguntar à IA')) return; gateFeature('perguntar', 'perguntar', 'Perguntar à IA', () => setShowPerguntarSheet(true)); } },
+                    ...(tabelaNome ? [{ icon: Network, label: 'Grafo de conexões', desc: 'Ver relações do artigo', color: '#10B981', onClick: () => { setActiveActionMenu(null); gateFeature('grafo', 'grafo', 'Grafo de conexões', () => setShowGrafo(true)); } }] : []),
                     { icon: Copy, label: 'Copiar artigo', desc: 'Texto para a área de transferência', color: '#8B5CF6', onClick: () => { setActiveActionMenu(null); handleCopy(); } },
-                    { icon: Bell, label: 'Lembretes', desc: 'Avisar ao chegar em um local', color: '#F59E0B', onClick: () => { setActiveActionMenu(null); import('./LembretesArtigoSheet'); setShowLembretesLocal(true); } },
+                    { icon: Bell, label: 'Lembretes', desc: 'Avisar ao chegar em um local', color: '#F59E0B', onClick: () => { setActiveActionMenu(null); import('./LembretesArtigoSheet'); gateFeature('lembretes', 'lembretes', 'Lembretes', () => setShowLembretesLocal(true)); } },
                     { icon: Download, label: 'Baixar artigo', desc: 'PDF ou imagem, lei seca ou comentado', color: '#0EA5E9', onClick: () => { setActiveActionMenu(null); setShowBaixarSheet(true); } },
                     { icon: Share2, label: 'Compartilhar', desc: 'Enviar para outro app', color: '#06B6D4', onClick: () => { setActiveActionMenu(null); setShowSharePanel(p => !p); } },
                   ];
 
-                  const gateGrifo = (key: 'grifo_manual' | 'grifo_magico' | 'grifo_voz' | 'grifo_foto', label: string, action: () => void) => {
-                    if (!isPremium && !canUse(key)) {
-                      openPremiumGate('grifo', `${label} é uma função para assinantes. Comece 7 dias grátis para liberar.`);
-                      return;
-                    }
-                    if (!isPremium) registerUsage(key, `${tabelaNome}_${artigo?.numero}`);
-                    action();
-                  };
+                  const gateGrifo = (label: string, action: () => void) =>
+                    gateFeature('grifo', 'grifo', label, action);
                   const grifarItems = [
-                    { icon: Highlighter, label: highlightMode ? 'Desativar grifo manual' : 'Grifo manual', desc: 'Marcar com o dedo', color: '#EC4899', active: highlightMode, onClick: () => { setActiveActionMenu(null); if (highlightMode) { toggleMode(); return; } gateGrifo('grifo_manual', 'Grifo manual', () => toggleMode()); } },
-                    { icon: Sparkles, label: 'Grifo mágico (IA)', desc: 'Destaques automáticos', color: '#F59E0B', active: magicMode, spin: magicLoading, badge: magicHighlights.length, onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_magico', 'Grifo mágico', () => handleToggleMagic()); } },
-                    { icon: Mic, label: 'Grifar por voz', desc: 'Dite o trecho a destacar', color: '#EAB308', onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_voz', 'Grifar por voz', () => setVoiceGrifoActive(true)); } },
-                    { icon: Camera, label: 'Grifar de foto', desc: 'OCR de imagem', color: '#3B82F6', onClick: () => { setActiveActionMenu(null); gateGrifo('grifo_foto', 'Grifar de foto', () => setShowGrifoFoto(true)); } },
+                    { icon: Highlighter, label: highlightMode ? 'Desativar grifo manual' : 'Grifo manual', desc: 'Marcar com o dedo', color: '#EC4899', active: highlightMode, onClick: () => { setActiveActionMenu(null); if (highlightMode) { toggleMode(); return; } gateGrifo('Grifar', () => toggleMode()); } },
+                    { icon: Sparkles, label: 'Grifo mágico (IA)', desc: 'Destaques automáticos', color: '#F59E0B', active: magicMode, spin: magicLoading, badge: magicHighlights.length, onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => handleToggleMagic()); } },
+                    { icon: Mic, label: 'Grifar por voz', desc: 'Dite o trecho a destacar', color: '#EAB308', onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => setVoiceGrifoActive(true)); } },
+                    { icon: Camera, label: 'Grifar de foto', desc: 'OCR de imagem', color: '#3B82F6', onClick: () => { setActiveActionMenu(null); gateGrifo('Grifar', () => setShowGrifoFoto(true)); } },
                     { icon: Trash2, label: 'Apagar grifos', desc: 'Escolha por cor ou apague todos', color: '#EF4444', badge: eraseSheetHighlights.length, onClick: () => { setActiveActionMenu(null); setShowEraseSheet(true); } },
                   ];
                   const isGrifar = activeActionMenu === 'grifar';
