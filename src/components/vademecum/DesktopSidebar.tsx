@@ -61,12 +61,18 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
   }, [user]);
 
   const handleItemClick = async (item: { id: string; route?: string }) => {
+    console.log('[DesktopSidebar] click', item.id, '→', item.route ?? '(sem rota)');
     if (item.id === 'sair') {
       await signOut();
       navigate('/auth');
       return;
     }
+    if (item.id === 'explicacao') {
+      navigate('/pessoal/artigos');
+      return;
+    }
     if (item.route) navigate(item.route);
+    else console.warn('[DesktopSidebar] item sem rota nem handler:', item.id);
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Visitante';
@@ -87,7 +93,12 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
         return (
           <button
             key={item.id}
-            onClick={() => !isDisabled && handleItemClick(item)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isDisabled) handleItemClick(item);
+            }}
             disabled={isDisabled}
             title={collapsed ? item.label : undefined}
             className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3 mx-1'} py-1.5 rounded-lg text-[13px] font-body transition-colors ${
@@ -201,7 +212,14 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
             return (
               <button
                 key={item.id}
-                onClick={() => route ? navigate(route) : onTabChange(item.id as Tab)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('[DesktopSidebar] seção click', item.id, '→', route ?? '(tab)');
+                  if (route) navigate(route);
+                  else onTabChange(item.id as Tab);
+                }}
                 title={collapsed ? item.label : undefined}
                 className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3 mx-1'} py-1.5 rounded-lg text-[13px] font-body transition-all ${
                   active
@@ -238,7 +256,14 @@ const DesktopSidebar = ({ activeTab, onTabChange }: DesktopSidebarProps) => {
             return (
               <button
                 key={cat.id}
-                onClick={() => navigate(`/legislacao/${tipoToSlug(cat.tipo)}`)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const target = `/legislacao/${tipoToSlug(cat.tipo)}`;
+                  console.log('[DesktopSidebar] categoria click', cat.label, '→', target);
+                  navigate(target);
+                }}
                 title={collapsed ? cat.label : undefined}
                 className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3 mx-1'} py-1.5 rounded-lg text-[13px] font-body text-foreground/75 hover:bg-secondary hover:text-foreground transition-colors group`}
               >
