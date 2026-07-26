@@ -31,6 +31,7 @@ import { warmCoverCache } from '@/lib/coverLoader';
 import { slugToTipo, tipoToSlug, leiToSlug, leiPath, findLeiBySlug, CATEGORIAS_FIXAS } from '@/lib/legislacaoSlugs';
 import { LEIS_CATALOG } from '@/data/leisCatalog';
 import { Navigate } from 'react-router-dom';
+import { track } from '@/lib/analyticsEvents';
 
 const TIPO_CONFIG: Record<string, { label: string; icon: React.ElementType; bg: string }> = {
   constituicao: { label: 'Constituição', icon: Landmark, bg: 'from-amber-500/90 to-amber-700/80' },
