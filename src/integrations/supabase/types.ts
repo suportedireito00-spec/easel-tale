@@ -3314,6 +3314,36 @@ export type Database = {
         }
         Relationships: []
       }
+      horus_phone_takeover_notices: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          id: string
+          new_owner_email: string | null
+          new_owner_user_id: string | null
+          phone_e164: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          new_owner_email?: string | null
+          new_owner_user_id?: string | null
+          phone_e164: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          new_owner_email?: string | null
+          new_owner_user_id?: string | null
+          phone_e164?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       horus_phone_transfers: {
         Row: {
           created_at: string

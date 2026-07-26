@@ -8,7 +8,7 @@ import { haptic } from '@/lib/nativeHaptics';
 type Props = {
   open: boolean;
   onClose: () => void;
-  onVerified: () => void;
+  onVerified: (info?: { transferred?: boolean }) => void;
   initialPhone?: string;
 };
 
@@ -44,6 +44,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
   const [sending, setSending] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [nome, setNome] = useState('');
+  const [transferred, setTransferred] = useState(false);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
       setDigits(['', '', '', '', '', '']);
       setResendIn(0);
       setNome('');
+      setTransferred(false);
     }
   }, [open]);
 
@@ -112,10 +114,12 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
     setSending(false);
     if (error || data?.error) return toast.error(data?.error || 'Código incorreto');
     haptic.medium();
+    const wasTransferred = Boolean((data as any)?.transferred);
+    setTransferred(wasTransferred);
     const suggested = await suggestName();
     setNome(suggested);
     setStep('success');
-    onVerified();
+    onVerified({ transferred: wasTransferred });
   }
 
   async function saveNameAndFinish() {
@@ -137,7 +141,7 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
     setSending(false);
     haptic.medium();
     toast.success(`Prazer, ${finalName.split(' ')[0]}! 👋`);
-    onVerified();
+    onVerified({ transferred });
     onClose();
   }
 
@@ -273,6 +277,11 @@ export default function HorusVerifyPhoneSheet({ open, onClose, onVerified, initi
                     <p className="font-body text-sm text-muted-foreground mt-1">
                       Você acabou de verificar seu número <b className="text-foreground">{phone}</b>.
                     </p>
+                    {transferred && (
+                      <p className="font-body text-xs text-amber-400 mt-2">
+                        O vínculo com a conta anterior foi encerrado automaticamente.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <label className="block">

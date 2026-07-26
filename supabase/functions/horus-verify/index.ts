@@ -24,8 +24,10 @@ Deno.serve(async (req) => {
     if (action === "start") {
       const phone = toE164(String(body.phone || ""));
       if (!phone) return json({ error: "Telefone inválido" }, 400);
-      // DB usa phone_e164 sem "+" (mesmo formato do webhook). Só o Evolution recebe com "+".
+      // DB usa phone_e164 sem "+" em TODAS as tabelas (whatsapp_users, verification_codes,
+      // memoria, stats). Só o Evolution recebe com "+".
       const phoneDb = phone.replace(/^\+/, "");
+      console.log("[horus-verify] start", { userId, phoneDb });
 
       // Rate-limit: bloqueia se este número já foi transferido 3x nas últimas 24h
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -111,19 +113,22 @@ Deno.serve(async (req) => {
       await admin.from("horus_verification_codes").update({ consumed_at: new Date().toISOString() }).eq("id", row.id);
 
       // Transferência atômica: desvincula da conta antiga (se houver), limpa memória
-      // do WhatsApp, cria o vínculo com a nova conta e sincroniza profiles.telefone.
+      // do WhatsApp, cria o vínculo com a nova conta, sincroniza profiles.telefone e
+      // grava um aviso de takeover pro dono antigo (realtime).
+      console.log("[horus-verify] confirm ok, chamando RPC transferir_numero", { userId, phoneDb });
       const { data: rpcData, error: rpcErr } = await admin.rpc("horus_transferir_numero", {
         _new_user_id: userId,
         _phone: phoneDb,
       });
       if (rpcErr) {
-        console.error("horus_transferir_numero fail", rpcErr);
+        console.error("[horus-verify] horus_transferir_numero fail", rpcErr);
         const msg = String(rpcErr.message || "");
         if (msg.includes("rate_limited")) {
           return json({ error: "Muitas transferências recentes deste número. Tente novamente em algumas horas." }, 429);
         }
-        return json({ error: "Falha ao vincular número. Tente novamente." }, 500);
+        return json({ error: "Falha ao vincular número. Tente novamente.", detail: msg }, 500);
       }
+      console.log("[horus-verify] RPC ok", rpcData);
 
       const transferred = Boolean((rpcData as any)?.transferred);
       const nome = String((rpcData as any)?.display_name || "").trim();

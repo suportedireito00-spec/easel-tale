@@ -190,6 +190,33 @@ const AssistenteHorus = () => {
   }
   useEffect(() => { loadStatus(); }, []);
 
+  // Realtime: reflete alterações instantâneas no vínculo (verificação, transferência,
+  // revogação por outra conta). Sem isso, a UI ficava presa no cache local.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      channel = supabase
+        .channel(`horus-whatsapp-user-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'horus_whatsapp_users',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            try { window.localStorage.removeItem(HORUS_CACHE_KEY); } catch {}
+            loadStatus();
+          },
+        )
+        .subscribe();
+    })();
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, []);
+
   const prefs: NotifPrefs = useMemo(
     () => ({ ...DEFAULT_PREFS, ...(linked?.notif_prefs || {}) }),
     [linked?.notif_prefs],
@@ -214,7 +241,9 @@ const AssistenteHorus = () => {
     }
     openWhatsApp();
   }
-  function handleVerified() {
+  function handleVerified(_info?: { transferred?: boolean }) {
+    // Invalida cache local pra não voltar mostrando "Vincular WhatsApp" depois de verificar.
+    try { window.localStorage.removeItem(HORUS_CACHE_KEY); } catch {}
     loadStatus();
     if (waIntent) {
       setWaIntent(false);
