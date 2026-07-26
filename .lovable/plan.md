@@ -1,36 +1,52 @@
-## O que já verifiquei
+## Objetivo
 
-- A página `/admin-assinantes` chama a edge function `play-reporting`, que devolve dois blocos: `reporting` (Google Play Developer Reporting API) e `local` (nosso banco).
-- O bloco **local funciona**: no banco existem 10 linhas em `play_subscriptions` (9 `ACTIVE`, 1 `CANCELED`) — bate com o "Total registradas 10" da sua tela.
-- O bloco **reporting está zerado** em todos os cards ("Ativos hoje", "Novos 7d", "Cancelados 7d", "Renovações 30d") e o gráfico de evolução nem aparece (só renderiza se houver linhas).
-- Os logs recentes da função não mostram erro: a chamada ao Google é feita dentro de um `.catch()` que engole a falha e devolve `{ error: ... }`, e a tela **só exibe aviso quando o erro é 403**. Qualquer outro erro (API não habilitada, nome de métrica inválido, package name errado, 400/404) fica invisível e vira zero.
+Sempre que alguém se cadastrar ou iniciar a assinatura teste (mensal/anual), o admin recebe:
+1. Uma mensagem no WhatsApp pelo Horus (uma única vez por evento);
+2. Uma notificação push personalizada que, ao ser tocada, abre direto o painel correspondente ("Cadastrados hoje" ou "Iniciou teste").
 
-Ou seja: a causa exata ainda não está confirmada — o erro real do Google está sendo escondido. O primeiro passo do plano é justamente revelá-lo.
+## Como vai funcionar
 
-## Plano
+### 1. Fila de alertas no banco
+Nova tabela `admin_alertas` com: tipo (`cadastro` | `trial`), usuário, status (`pendente`/`enviado`/`falhou`), payload e data de envio. Índice único por (tipo, user_id) garante **uma mensagem só** por evento, mesmo com reprocessamentos.
 
-**1. Expor o erro real (diagnóstico)**
-- Em `play-reporting`, logar `status` + corpo da resposta do Google para cada consulta (`subscriptionMetricSet`, `installsMetricSet`) e devolver esse detalhe no payload.
-- Na página, trocar o aviso "só 403" por um painel de diagnóstico que mostra qualquer erro do Google (status, mensagem, package name e e-mail da service account), com o texto de ajuda específico para 403 (permissões) e para 403/404 de API desabilitada.
+Gatilhos (triggers) que inserem na fila:
+- `profiles` → novo registro = alerta `cadastro`;
+- `play_subscriptions` e `apple_subscriptions` → novo registro = alerta `trial`.
 
-**2. Corrigir a consulta ao Reporting API**
-Com o erro em mãos, ajustar o que estiver quebrado, entre as causas prováveis:
-- Nomes de métricas/dimensões inválidos no `subscriptionMetricSet` (retorna 400 e some tudo) — validar contra a documentação atual da Play Developer Reporting API e corrigir.
-- `ANDROID_PACKAGE_NAME` ausente ou diferente do pacote publicado.
-- Play Developer Reporting API não habilitada no projeto Google Cloud da service account.
-- Permissões faltando no Play Console para a service account.
-- Janela de dados: o Reporting API tem atraso de alguns dias e não devolve "hoje"; ajustar o cálculo de "Ativos hoje" para usar o último dia disponível e mostrar a data de referência.
+### 2. Processamento a cada minuto
+A rotina já existente que roda de minuto em minuto (`reminders-tick`) ganha um passo extra que consome a fila. Isso evita criar uma nova função de borda (o projeto já está no limite).
 
-**3. Fallback confiável quando o Reporting API não tiver dados**
-- O Reporting API só cobre apps com volume/histórico. Adicionar um fallback que calcula "ativos / novos / cancelados / renovações" a partir de `play_subscriptions` (dados que já recebemos por webhook RTDN + validate-purchase), marcando visualmente a origem ("Play Reporting" vs "nosso banco").
-- Com isso os cards deixam de ficar zerados mesmo enquanto o Google não devolve nada.
+Para cada alerta pendente ela monta o conteúdo e envia.
 
-**4. Ajustar a leitura de "assinaturas de teste"**
-- Hoje toda assinatura com duração < 1h é classificada como teste — por isso "Premium agora 0" e "Testes 9". Confirmar essa heurística contra as linhas reais e, se necessário, passar a usar o flag de compra de teste/licença em vez da duração, para não zerar a receita indevidamente.
+**Mensagem de cadastro** (WhatsApp para +55 11 99189-7603):
+- Nome da pessoa
+- Origem da conta: Google, Apple ou E-mail
+- E-mail e telefone informados
+- Perfil (estudante, advogado, concurseiro etc.) e faixa etária
+- Cidade/UF/País, quando disponível
+- Horário do cadastro e total de cadastros do dia
 
-**5. Validar**
-- Recarregar `/admin-assinantes` e conferir: ou os números do Play aparecem, ou o painel mostra exatamente qual configuração falta (com link e passo a passo no Play Console / Google Cloud).
+**Mensagem de teste iniciado**:
+- Nome, e-mail e origem da conta
+- Plano assinado (mensal/anual) e loja (Google Play / Apple)
+- Tempo entre o cadastro e a conversão (ex.: "converteu 3 dias após o cadastro")
+- Quantidade de acessos ao app e tempo total de tela
+- Top 3 funções mais acessadas (mesma classificação usada no dossiê do usuário)
+- Resumo curto do que ela mais usou antes de assinar
+
+### 3. Push para o admin
+Após a mensagem, o mesmo passo dispara o envio de push (função `send-push` já existente) apenas para os dispositivos do admin, com:
+- Cadastro: título "Novo cadastro" + nome/origem, link `/admin-funcoes?card=cadastros`
+- Teste: título "Novo teste iniciado" + nome/plano, link `/admin-funcoes?card=trial`
+
+### 4. Abrir o painel certo ao tocar
+No painel de admin, ao abrir com `?card=cadastros` ou `?card=trial`, o cartão correspondente abre automaticamente a folha de detalhes do dia (com o marcador verde "NOVO" já existente), e o parâmetro é limpo da URL em seguida.
 
 ## Detalhes técnicos
 
-Arquivos envolvidos: `supabase/functions/play-reporting/index.ts` (logging, correção da query, fallback local) e `src/pages/AdminAssinantes.tsx` (painel de diagnóstico, badge de origem dos dados, data de referência). Nenhuma mudança de schema é necessária.
+- Migração: tabela `admin_alertas` (RLS: leitura só para admin, escrita via service role), índice único `(tipo, user_id)`, funções de trigger `SECURITY DEFINER`.
+- Envio WhatsApp: helper `_shared/evolution.ts` (`evolution.sendText`), com registro em `horus_outbound_log` (tipo `admin_alerta`) e status gravado na fila.
+- Push: chamada interna à função `send-push` com `audience.user_ids` = ids de admin (resolvidos por `is_admin_user`/e-mails admin) e `data.url` para o deep link.
+- Número do admin e e-mails admin ficam configuráveis via `horus_config` (chave `admin_alertas`), com fallback para os valores atuais.
+- Frontend: leitura de `useSearchParams` em `AdminFuncoes`/`AdminHojeCards` para abrir o cartão indicado.
+- Caso o passo dentro de `reminders-tick` fique pesado, alternativa é um cron dedicado apontando para a mesma função com um parâmetro `only=admin_alertas`.
