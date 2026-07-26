@@ -7486,6 +7486,7 @@ export type Database = {
         }[]
       }
       admin_metricas_dia: { Args: { _dia: string }; Returns: Json }
+      admin_totais: { Args: { _tipo: string }; Returns: Json }
       admin_user_auth_providers: {
         Args: { _ids: string[] }
         Returns: {
