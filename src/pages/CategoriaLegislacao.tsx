@@ -292,6 +292,7 @@ const CategoriaLegislacao = () => {
   }, [selectedTabelaNome]);
 
   const openArtigoWithRecent = useCallback((artigo: ArtigoLei) => {
+    track('legislacao_artigo_opened', { lei_id: selectedLeiId, lei_nome: selectedLeiNome, tabela: selectedTabelaNome, artigo_id: artigo.id, artigo_numero: artigo.numero });
     setOpenArtigo(artigo);
     if (!selectedTabelaNome) return;
     setRecentIds(prev => {
@@ -299,7 +300,7 @@ const CategoriaLegislacao = () => {
       try { localStorage.setItem(`recentes_artigos_${selectedTabelaNome}`, JSON.stringify(next)); } catch {}
       return next;
     });
-  }, [selectedTabelaNome]);
+  }, [selectedTabelaNome, selectedLeiId, selectedLeiNome]);
 
   // Player flutuante de narração: quando a pessoa clica pra voltar ao artigo
   useEffect(() => {
