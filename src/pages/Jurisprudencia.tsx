@@ -327,6 +327,9 @@ const Jurisprudencia = () => {
                 onClick={() => abrir(op.id)}
                 onPointerEnter={() => prefetchTarget(op.id)}
                 onTouchStart={() => prefetchTarget(op.id)}
+                data-track="jurisprudencia_category_click"
+                data-category-id={op.id}
+                data-category-label={op.label}
                 className="group w-full h-[104px] flex items-stretch gap-3 rounded-2xl bg-secondary/60 border border-border hover:border-primary/50 hover:bg-secondary transition-all text-left overflow-hidden shadow-sm shadow-black/5 hover:shadow-md hover:shadow-primary/10"
               >
                 <div
