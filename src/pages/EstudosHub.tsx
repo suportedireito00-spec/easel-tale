@@ -328,7 +328,8 @@ const EstudosHub = () => {
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-sm font-display font-bold text-foreground">Seu desempenho</h3>
               <button
-                onClick={() => navigate('/estudos?view=desempenho')}
+                onClick={() => { track('estudos_desempenho_click'); navigate('/estudos?view=desempenho'); }}
+                data-track="estudos_desempenho_click"
                 className="text-[11px] text-primary font-semibold"
               >
                 Ver tudo →
