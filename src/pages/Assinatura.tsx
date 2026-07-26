@@ -266,6 +266,7 @@ export default function Assinatura() {
   // ── Handle PIX ──
   const handlePixPayment = async () => {
     if (!cpf || !cep) { toast.error("Preencha CPF e CEP"); return; }
+    track('subscription_payment_started', { plano: 'anual', metodo: 'pix' });
     setProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke("processar-pagamento", {
@@ -273,14 +274,17 @@ export default function Assinatura() {
       });
       if (error) throw error;
       if (data?.success) {
+        track('subscription_payment_initiated', { plano: 'anual', metodo: 'pix', payment_id: data.paymentId });
         setPixQrImage(data.qrCodeImage);
         setPixPayload(data.qrCodePayload);
         setPixPaymentId(data.paymentId);
       } else {
+        track('subscription_payment_failed', { plano: 'anual', metodo: 'pix', erro: data?.error ?? 'unknown' });
         toast.error(data?.error || "Erro ao gerar PIX");
       }
     } catch (err: any) {
       console.error(err);
+      track('subscription_payment_failed', { plano: 'anual', metodo: 'pix', erro: err?.message ?? 'exception' });
       toast.error("Erro ao gerar PIX");
     } finally {
       setProcessing(false);
