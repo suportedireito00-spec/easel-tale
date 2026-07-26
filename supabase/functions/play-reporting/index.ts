@@ -209,10 +209,11 @@ function buildMetrics(rows: any[]) {
 async function fetchSubscribersLocal(supabase: ReturnType<typeof createClient>) {
   const { data: rows, error } = await supabase
     .from('play_subscriptions')
-    .select('user_id, product_id, base_plan_id, purchase_token, order_id, status, auto_renewing, start_time, expires_at, cancel_reason, updated_at')
+    .select('id, user_id, product_id, base_plan_id, purchase_token, order_id, status, auto_renewing, start_time, expires_at, cancel_reason, latest_notification_type, updated_at')
     .order('start_time', { ascending: false, nullsFirst: false })
     .limit(500);
   if (error) throw error;
+
 
   const userIds = [...new Set((rows ?? []).map((r) => r.user_id).filter(Boolean))];
   const profilesMap = new Map<string, { display_name?: string; avatar_url?: string }>();
