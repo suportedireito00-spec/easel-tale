@@ -49,8 +49,9 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
   const [gateOpen, setGateOpen] = useState(false);
   const [lembreteOpen, setLembreteOpen] = useState(false);
   const { canUse, register, used, config } = useFeatureLimit('biblioteca_ler', {
-    scope: livro?.colecaoId || null,
+    scope: livro ? String(livro.id) : null,
   });
+
 
   // Ficha técnica: nº de páginas + tempo médio de leitura (lazy via pdfjs)
   const numPages = useLivroPageCount(open ? livro?.download : null);
@@ -153,6 +154,11 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
   };
 
   const onSelectModo = async (modo: LerModo) => {
+    // Bloqueio de leitura: 1 livro por mês (bypass se este mesmo livro já foi liberado)
+    if (!canUse) { setLerDialog(false); setGateOpen(true); return; }
+    // Registra o uso antes de liberar qualquer modo (scope/ref = id do livro)
+    register(String(livro.id));
+
     if (modo === 'download') { handleDownloadPdf(); return; }
     if (modo === 'desktop') {
       const url = typeof window !== 'undefined' ? window.location.href : '';
@@ -168,8 +174,6 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
       return;
     }
     setLerDialog(false);
-    // Bloqueio de leitura: 1 livro por coleção/mês (bypass se já lido antes ou é o mesmo)
-    if (!canUse) { setGateOpen(true); return; }
     if (modo === 'nativa') setReaderMode('nativa');
     else if (modo === 'pdf') {
       const url = await ensurePdfLocalUrl();
@@ -178,9 +182,8 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
     } else if (modo === 'online' && livro.link) {
       setReaderMode('online');
     }
-    // Registra o uso (scope = coleção, ref = id do livro)
-    register(String(livro.id));
   };
+
 
   const openNativoSystem = () => {
     if (livro.download) openPdfNative(livro.download, `${livro.titulo}.pdf`);
@@ -321,8 +324,9 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
                       // do LeitorNativo).
                       if (isDesktop) {
                         if (!canUse) { setGateOpen(true); return; }
-                        register();
+                        register(String(livro.id));
                         setReaderMode('nativa');
+
                         return;
                       }
                       setLerDialog(true);
@@ -490,10 +494,11 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
         open={gateOpen}
         onClose={() => setGateOpen(false)}
         feature="biblioteca"
-        title="Limite da biblioteca atingido"
-        description="Free lê 1 livro por coleção/mês. Assine para ter todas as coleções liberadas."
-        usageLabel={config ? `Você já leu ${used} livro(s) desta coleção este mês` : undefined}
+        title="Você já leu seu livro grátis deste mês"
+        description="No plano gratuito você lê 1 livro por mês — com leitura nativa, PDF, folheada, offline e desktop. Assine para liberar todo o acervo."
+        usageLabel={config ? 'Livro gratuito do mês já utilizado' : undefined}
       />
+
       <LembreteSheet
         open={lembreteOpen}
         onClose={() => setLembreteOpen(false)}
