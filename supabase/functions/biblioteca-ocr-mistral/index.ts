@@ -404,18 +404,12 @@ serve(async (req) => {
           img.imageBase64 = undefined;
         }
 
+        const pageClass = classificarPaginaLivro(md, pageNum);
         const headingRe = /^(#{1,3})\s+(.+)$/gm;
         let m: RegExpExecArray | null;
         while ((m = headingRe.exec(md))) {
           const t = m[2].trim().replace(/\*+/g, '').replace(/_{2,}/g, '').trim();
-          if (!t) continue;
-          // Ignora entradas típicas de SUMÁRIO impresso do livro:
-          //  - "Título ..... 39" (dot leader + número)
-          //  - "Alguma coisa 39" (número de página no fim)
-          //  - Cabeçalhos genéricos "Sumário" / "Índice" / "Table of Contents"
-          if (/\.{2,}\s*\d{1,4}\s*$/.test(t)) continue;
-          if (/\s\d{1,4}\s*$/.test(t) && t.length < 120) continue;
-          if (/^(sum[áa]rio|[íi]ndice(\s+geral)?|table of contents|conte[úu]do)$/i.test(t)) continue;
+          if (!aceitarHeadingComoCandidato(t, m[1].length, pageNum, pageClass)) continue;
           sumario.push({ nivel: m[1].length, titulo: t, page: pageNum });
         }
 
@@ -654,14 +648,20 @@ async function handleRefino(body: RefinoBody) {
     // Amostra em três pontos (início/meio/fim) para o sumário canônico —
     // livros com índice no fim ou preliminares longas não ficam com "Conteúdo" único.
     const amostragem = amostrarPaginas(pages);
+    const pageClasses = pages.map((p, i) => classificarPaginaLivro(p, i + 1));
+    const paginasNaoCapitulo = pageClasses
+      .filter((p) => p.kind !== "conteudo")
+      .map((p) => p.page);
     const sumarioExtraido = Array.isArray(row.sumario_json) ? (row.sumario_json as any[]) : [];
+    const sumarioExtraidoFiltrado = filtrarCandidatosSumario(sumarioExtraido, pageClasses);
     const sumario = validarERepararSumario(
-      await gerarSumarioCanonico(amostragem, pages.length, sumarioExtraido),
+      await gerarSumarioCanonico(amostragem, pages.length, sumarioExtraidoFiltrado),
       pages,
-      sumarioExtraido,
+      sumarioExtraidoFiltrado,
+      pageClasses,
     );
     const prelim = new Set<number>(
-      (sumario.preliminaresPaginas ?? []).filter((n) => Number.isInteger(n) && n >= 1 && n <= pages.length)
+      unirPaginas(sumario.preliminaresPaginas ?? [], paginasNaoCapitulo, pages.length)
     );
     const preliminaresMd = pages.map((p, i) => prelim.has(i + 1) ? p : null).filter(Boolean).join("\n\n---\n\n");
 
