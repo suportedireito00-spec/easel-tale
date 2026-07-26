@@ -610,8 +610,17 @@ jobs:
             echo "No Podfile found; Capacitor iOS is using Swift Package Manager. Skipping CocoaPods FacebookSDK injection."
           fi
 
-          # Override AppDelegate.swift to initialize Facebook SDK and Firebase Analytics
-          cat > ios/App/App/AppDelegate.swift <<'SWIFT'
+          # AppDelegate: só importa o FBSDK quando o SDK realmente existe no
+          # projeto (Podfile com FacebookSDK). Capacitor gera iOS via SPM e sem
+          # o pod o build quebra com "unable to resolve module dependency:
+          # 'FBSDKCoreKit'" (erro 65 no Archive).
+          HAS_FB=0
+          if [ -f "$PODFILE" ] && grep -q "FacebookSDK" "$PODFILE"; then
+            HAS_FB=1
+          fi
+
+          if [ "$HAS_FB" = "1" ]; then
+            cat > ios/App/App/AppDelegate.swift <<'SWIFT'
           import UIKit
           import Capacitor
           import FBSDKCoreKit
@@ -644,7 +653,37 @@ jobs:
               }
           }
           SWIFT
-          echo "Overwrote AppDelegate.swift with Facebook SDK + Firebase Analytics init"
+            echo "Overwrote AppDelegate.swift with Facebook SDK + Firebase Analytics init"
+          else
+            cat > ios/App/App/AppDelegate.swift <<'SWIFT'
+          import UIKit
+          import Capacitor
+          import FirebaseCore
+          import FirebaseAnalytics
+
+          @UIApplicationMain
+          class AppDelegate: UIResponder, UIApplicationDelegate {
+
+              var window: UIWindow?
+
+              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                  FirebaseApp.configure()
+                  Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
+                  return true
+              }
+
+              func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+                  return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
+              }
+
+              func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+                  return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+              }
+          }
+          SWIFT
+            echo "Overwrote AppDelegate.swift with Firebase Analytics init (sem Facebook SDK)"
+          fi
+
 
       - name: Archive
         run: |
