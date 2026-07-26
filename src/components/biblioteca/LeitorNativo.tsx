@@ -180,16 +180,18 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
         });
       }
 
-      const refinadoPronto = data.refino_status === 'pronto' && data.conteudo_md_refinado;
-      const refinoFalhou = data.refino_status === 'erro' && data.conteudo_md;
-      const brutoLiberado = data.status === 'pronto' && data.conteudo_md && !data.conteudo_md_refinado;
-      const contentToUse = refinadoPronto
-        ? data.conteudo_md_refinado
-        : refinoFalhou || brutoLiberado
-          ? data.conteudo_md
-          : null;
+      // Regra de "pronto para o usuário final":
+      //   Se existe QUALQUER conteúdo (refinado preferido, senão bruto), abrimos
+      //   direto — independentemente de refino_status. Isso garante que, quando
+      //   o admin já extraiu o livro, o usuário normal entra na leitura
+      //   nativa sem passar por tela de "processando" nem re-disparar o OCR.
+      const contentToUse = data.conteudo_md_refinado || data.conteudo_md || null;
+      if (data.refino_status === 'erro' && data.conteudo_md && !data.conteudo_md_refinado) {
+        // apenas aviso — o conteúdo bruto será usado
+      }
 
       if (data.status === 'pronto' && contentToUse) {
+
         setStatus('pronto');
         setConteudo(contentToUse);
         setSumario((data.sumario_json as SumarioItem[]) || []);
@@ -298,13 +300,21 @@ const LeitorNativo = ({ livroId, livroTabela, pdfUrl, titulo, onClose, autor, an
         const existing = await fetchLatest();
         if (cancelled) return;
 
-        if (existing?.status === 'pronto' && (existing.conteudo_md_refinado || existing.conteudo_md)) {
+        // Se qualquer conteúdo já foi extraído (pelo admin ou por outro
+        // usuário), não redispara OCR. O applyRow do fetchLatest já colocou
+        // o status como 'pronto' e o leitor abre direto.
+        if (existing && (existing.conteudo_md_refinado || existing.conteudo_md)) {
           cacheLeituraOnDemand(livroTabela, livroId);
+          // Se o refino ainda está rodando em background, continua ouvindo
+          // via realtime para trocar o conteúdo bruto pelo refinado quando
+          // ficar pronto — mas o usuário já pode ler agora.
+          if (existing.refino_status === 'processando') startPolling();
           return;
         }
 
         setStatus('processando');
         startPolling();
+
         const { error } = await supabase.functions.invoke('biblioteca-ocr-mistral', {
           body: { livro_id: livroId, livro_tabela: livroTabela, pdf_url: pdfUrl, titulo },
         });
