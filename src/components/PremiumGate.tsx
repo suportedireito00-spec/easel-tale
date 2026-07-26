@@ -40,7 +40,7 @@ const FEATURES: Record<PremiumFeatureKey, FeatureInfo> = {
   favorito:      { title: 'Favoritos ilimitados', description: 'Salve quantos artigos quiser nos seus favoritos. Assine para desbloquear.', icon: Highlighter },
   radar:         { title: 'Radar Legislativo', description: 'Acompanhe projetos de lei em tempo real com análise da IA. Assine para desbloquear.', icon: Radar },
   blog:          { title: 'Blogger Jurídico completo', description: 'Leia todos os artigos exclusivos do blog sem limites. Assine para desbloquear.', icon: Newspaper },
-  biblioteca:    { title: 'Biblioteca completa', description: 'Acesse a biblioteca de clássicos e obras jurídicas na íntegra. Assine para desbloquear.', icon: Library },
+  biblioteca:    { title: 'Biblioteca completa', description: 'No plano gratuito você lê 1 livro por mês. Assine para ler todo o acervo — leitura nativa, PDF, folheada, offline e desktop.', icon: Library },
   aprender:      { title: 'Trilha Aprender ilimitada', description: 'Estude com trilhas guiadas e conteúdo sem limite diário. Assine para desbloquear.', icon: GraduationCap },
   horus:         { title: 'Horus 24h no WhatsApp', description: 'Sua assistente jurídica pessoal disponível 24h no WhatsApp. Assine para desbloquear.', icon: Bot },
   default:       { title: 'Funcionalidade Premium', description: 'Assine para desbloquear esta função e aproveitar todos os recursos sem limites.', icon: Crown },
