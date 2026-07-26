@@ -6116,6 +6116,33 @@ export type Database = {
         }
         Relationships: []
       }
+      smart_link_claims: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          fingerprint_hash: string
+          id: string
+          platform: string
+          target_path: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          fingerprint_hash: string
+          id?: string
+          platform?: string
+          target_path: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          fingerprint_hash?: string
+          id?: string
+          platform?: string
+          target_path?: string
+        }
+        Relationships: []
+      }
       store_setup_progress: {
         Row: {
           completed: boolean
