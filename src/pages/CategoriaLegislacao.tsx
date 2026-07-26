@@ -2129,6 +2129,7 @@ const CategoriaLegislacao = () => {
                   key={tab.key}
                   onClick={() => {
                     if (!isPremium && tab.key === 'radar') {
+                      setPremiumGateFeature('radar');
                       setPremiumGateDesc('O Radar Legislativo é exclusivo para assinantes.');
                       setShowPremiumGate(true);
                       return;
