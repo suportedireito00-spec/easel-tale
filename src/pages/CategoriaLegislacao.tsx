@@ -174,6 +174,14 @@ const CategoriaLegislacao = () => {
     })();
     return () => { cancelled = true; };
   }, [selectedLeiId]);
+
+  // Analytics: lei selecionada
+  useEffect(() => {
+    if (selectedLeiId) {
+      track('legislacao_lei_opened', { lei_id: selectedLeiId, lei_nome: selectedLeiNome, tipo });
+    }
+  }, [selectedLeiId, selectedLeiNome, tipo]);
+
   const searchBarRef = useRef<HTMLDivElement | null>(null);
   const artigosListRef = useRef<HTMLDivElement | null>(null);
   const [artigosListOffset, setArtigosListOffset] = useState(0);
