@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Search, Shield, Landmark, Scale, ChevronRight, Gavel, FileText, ListChecks } from 'lucide-react';
 import JurisBlogCarousel from '@/components/vademecum/JurisBlogCarousel';
 import HeroOrnaments from '@/components/vademecum/HeroOrnaments';
