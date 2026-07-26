@@ -331,6 +331,7 @@ export default function Assinatura() {
   const [trialSheetPlan, setTrialSheetPlan] = useState<TrialPlan | null>(null);
 
   const startPurchase = (plano: PlanoTab) => {
+    track('subscription_started', { plano, metodo: nativeBilling ? 'play' : 'web', source: 'planos_page' });
     import('@/lib/appEvents')
       .then(({ appEvents }) => {
         appEvents.verPlano({ plano });
