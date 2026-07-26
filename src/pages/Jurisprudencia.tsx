@@ -290,6 +290,7 @@ const Jurisprudencia = () => {
           {/* Busca */}
           <form
             onSubmit={submitBusca}
+            data-track="jurisprudencia_search_form"
             className="mt-5 w-full max-w-md flex items-center gap-2 rounded-full bg-white/95 pl-4 pr-1 py-1 shadow-lg shadow-emerald-950/30"
           >
             <Search className="w-5 h-5 text-emerald-800/70 shrink-0" />
