@@ -196,11 +196,10 @@ function buildMetrics(rows: any[]) {
   const novos7 = rows.filter((r) => r.start_time && new Date(r.start_time).getTime() >= since7).length;
   const cancelados7 = rows.filter((r) =>
     r.status === 'SUBSCRIPTION_STATE_CANCELED' && r.updated_at && new Date(r.updated_at).getTime() >= since7).length;
-  const renovacoes30 = rows.filter((r) => {
-    const raw = r.raw_payload as any;
-    const ntype = r.latest_notification_type;
-    return ntype === 2 && r.updated_at && new Date(r.updated_at).getTime() >= now - 30 * dayMs && !!raw;
-  }).length;
+  const renovacoes30 = rows.filter((r) =>
+    r.latest_notification_type === 2 &&
+    r.updated_at && new Date(r.updated_at).getTime() >= now - 30 * dayMs).length;
+
 
   return { ativosHoje, novos7, cancelados7, renovacoes30, timeline };
 }
