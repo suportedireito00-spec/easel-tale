@@ -182,6 +182,7 @@ const HomeHeaderHero = ({ onSearchOpenChange }: { onSearchOpenChange?: (open: bo
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.email ? user.email.split('@')[0] : 'Bem-vindo');
   const avatarUrl =
+    (profileSummary?.avatarUrl || undefined) ||
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined);
   const iniciais = nome
