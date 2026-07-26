@@ -231,6 +231,31 @@ Deno.serve(async (req) => {
         });
       }
 
+      case 'grep_logs': {
+        // Filtra as linhas do log por regex — útil para depuração no chat.
+        if (!run_id) return json({ error: 'missing run_id' }, 400);
+        const jobsRes = await gh(`/repos/${repo}/actions/runs/${run_id}/jobs`);
+        if (!jobsRes.ok) return json({ error: 'jobs failed', status: jobsRes.status }, jobsRes.status);
+        const jobsData = await jobsRes.json();
+        const jobs = jobsData.jobs || [];
+        const target =
+          (body?.job_id && jobs.find((j: any) => j.id === body.job_id)) ||
+          jobs.find((j: any) => j.conclusion === 'failure') ||
+          jobs[jobs.length - 1];
+        if (!target) return json({ error: 'no job found' }, 404);
+        const logRes = await gh(`/repos/${repo}/actions/jobs/${target.id}/logs`, { redirect: 'follow' });
+        if (!logRes.ok) return json({ error: 'logs failed', status: logRes.status }, logRes.status);
+        const full = await logRes.text();
+        const lines = full.split('\n').map((l) => l.replace(/^\S+Z /, '').replace(/\u001b\[[0-9;]*m/g, ''));
+        const re = new RegExp(body?.pattern || 'error', 'i');
+        const limit = Math.min(Number(body?.limit) || 60, 200);
+        const hits = lines.filter((l) => re.test(l));
+        return json({
+          total_lines: lines.length,
+          matches: hits.length,
+          lines: hits.slice(-limit),
+        });
+      }
 
 
       case 'download_artifact': {
