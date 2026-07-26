@@ -407,7 +407,16 @@ serve(async (req) => {
         const headingRe = /^(#{1,3})\s+(.+)$/gm;
         let m: RegExpExecArray | null;
         while ((m = headingRe.exec(md))) {
-          sumario.push({ nivel: m[1].length, titulo: m[2].trim(), page: pageNum });
+          const t = m[2].trim().replace(/\*+/g, '').replace(/_{2,}/g, '').trim();
+          if (!t) continue;
+          // Ignora entradas típicas de SUMÁRIO impresso do livro:
+          //  - "Título ..... 39" (dot leader + número)
+          //  - "Alguma coisa 39" (número de página no fim)
+          //  - Cabeçalhos genéricos "Sumário" / "Índice" / "Table of Contents"
+          if (/\.{2,}\s*\d{1,4}\s*$/.test(t)) continue;
+          if (/\s\d{1,4}\s*$/.test(t) && t.length < 120) continue;
+          if (/^(sum[áa]rio|[íi]ndice(\s+geral)?|table of contents|conte[úu]do)$/i.test(t)) continue;
+          sumario.push({ nivel: m[1].length, titulo: t, page: pageNum });
         }
 
         combinedMd += `\n\n<!-- page:${pageNum} -->\n\n` + md;
