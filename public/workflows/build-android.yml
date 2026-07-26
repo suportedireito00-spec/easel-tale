@@ -986,36 +986,6 @@ jobs:
               print('deep link intent-filter added')
           PY
 
-      - name: Add verified https App Link intent-filter (vacatio.com.br)
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          if 'android:host="vacatio.com.br"' not in s:
-              applink = '''                <intent-filter android:autoVerify="true">
-                    <action android:name="android.intent.action.VIEW" />
-                    <category android:name="android.intent.category.DEFAULT" />
-                    <category android:name="android.intent.category.BROWSABLE" />
-                    <data android:scheme="https" />
-                    <data android:scheme="http" />
-                    <data android:host="vacatio.com.br" />
-                    <data android:host="www.vacatio.com.br" />
-                    <data android:pathPrefix="/ir/" />
-                    <data android:pathPrefix="/lei/" />
-                    <data android:pathPrefix="/legislacao/" />
-                    <data android:pathPrefix="/noticias" />
-                    <data android:pathPrefix="/radar/" />
-                    <data android:pathPrefix="/livro/" />
-                </intent-filter>
-            </activity>'''
-              s = s.replace('</activity>', applink, 1)
-              p.write_text(s)
-              print('✅ https App Link intent-filter added (vacatio.com.br, autoVerify=true)')
-          else:
-              print('https App Link intent-filter already present')
-          PY
-
       - name: Add vacatio:// deep link scheme + App Shortcuts to AndroidManifest
         run: |
           python3 - <<'PY'
