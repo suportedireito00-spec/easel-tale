@@ -193,6 +193,16 @@ export function AdminHojeCards() {
         meta: hora(r.at),
       }));
       setRows(list);
+      if (sameDay(date, new Date())) {
+        const seen = readSeen(id, date);
+        const anteriores = new Set(seen.keys);
+        const novos = seen.keys.length === 0 && seen.count === 0 ? new Set<string>() : new Set(list.filter((r) => !anteriores.has(r.key)).map((r) => r.key));
+        setNovosKeys(novos);
+        writeSeen(id, date, { count: list.length, keys: list.map((r) => r.key) });
+        setSeenCounts((c) => ({ ...c, [id]: list.length }));
+      } else {
+        setNovosKeys(new Set());
+      }
       const ids = Array.from(new Set(list.map((r) => r.userId).filter(Boolean))) as string[];
       if (ids.length) {
         const { data: provs } = await supabase.rpc('admin_user_auth_providers' as any, { _ids: ids });
@@ -211,6 +221,7 @@ export function AdminHojeCards() {
     setDia(hoje);
     fetchRows(id, hoje);
   };
+
 
   const selecionarDia = (d: Date) => {
     setDia(d);
