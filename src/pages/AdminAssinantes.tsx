@@ -38,12 +38,33 @@ type LocalRow = {
   is_test: boolean;
 };
 
+type Metrics = {
+  ativosHoje: number;
+  novos7: number;
+  cancelados7: number;
+  renovacoes30: number;
+  timeline: { date: string; label: string; ativos: number; novos: number; cancelados: number; renovacoes: number }[];
+};
+
+type SyncInfo = {
+  checked?: number;
+  updated?: number;
+  errors?: { status: number; message: string }[];
+  lastSyncAt?: string;
+  error?: string;
+};
+
 type Payload = {
-  reporting: any;
-  local: { rows: LocalRow[]; stats: { total: number; active: number; test: number; byPlan: Record<string, number> } };
+  sync: SyncInfo | null;
+  local: {
+    rows: LocalRow[];
+    stats: { total: number; active: number; test: number; byPlan: Record<string, number> };
+    metrics: Metrics;
+  };
   packageName: string;
   serviceAccountEmail: string | null;
 };
+
 
 // Preços vigentes (BRL) — usados para estimar MRR/ARR/receita acumulada
 // Ajuste aqui se mudar o preço no Play Console.
