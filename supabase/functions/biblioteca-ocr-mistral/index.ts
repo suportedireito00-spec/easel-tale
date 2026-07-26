@@ -943,13 +943,29 @@ function aceitarHeadingComoCandidato(tituloRaw: string, nivel: number, page: num
 }
 
 function filtrarCandidatosSumario(sumarioExtraido: any[] = [], pageClasses: PageClassificacao[] = []) {
-  return (sumarioExtraido || [])
+  const candidatos = (sumarioExtraido || [])
     .filter((s: any) => s && typeof s.page === "number" && typeof s.titulo === "string")
     .map((s: any) => ({ ...s, titulo: limparTituloCandidato(String(s.titulo)) }))
+    .filter((s: any) => nivelEstruturalAceitavel(s))
     .filter((s: any) => tituloCapituloAceitavel(s.titulo, Number(s.page), pageClasses))
     .filter((s: any, idx: number, arr: any[]) =>
       arr.findIndex((x: any) => normalizarTexto(x.titulo) === normalizarTexto(s.titulo) && Number(x.page) === Number(s.page)) === idx,
     );
+  const temEstruturaNumerada = candidatos.filter((s: any) => tituloComecaComMarcadorEstrutural(s.titulo)).length >= 3;
+  return temEstruturaNumerada
+    ? candidatos.filter((s: any) => tituloComecaComMarcadorEstrutural(s.titulo) || Number(s.nivel || 1) <= 1)
+    : candidatos;
+}
+
+function nivelEstruturalAceitavel(s: any): boolean {
+  const nivel = Number(s?.nivel || 1);
+  const titulo = String(s?.titulo || "");
+  if (nivel <= 1) return true;
+  return tituloComecaComMarcadorEstrutural(titulo);
+}
+
+function tituloComecaComMarcadorEstrutural(titulo: string): boolean {
+  return /^\s*(\d{1,3}(?:\.\d{1,3})*\s*[.\-–—)]\s+|cap[ií]tulo\s+[\wIVXLCDM\d]+\b|parte\s+[\wIVXLCDM\d]+\b|t[ií]tulo\s+[\wIVXLCDM\d]+\b|se[cç][ãa]o\s+[\wIVXLCDM\d]+\b)/i.test(titulo);
 }
 
 function limparTituloCandidato(raw: string): string {
@@ -974,7 +990,7 @@ function tituloCapituloAceitavel(tituloRaw: string, page: number, pageClasses: P
   if (/^\(?[ivxlcdm\d]{1,6}\)?\s*$/i.test(titulo)) return false;
   if (/^(unidade|universalidade|anualidade|exclusividade|transpar[eê]ncia|equil[ií]brio|especifica[cç][aã]o|n[aã]o afeta[cç][aã]o)$/i.test(titulo)) return false;
   // Título de capa no início, sem marcador de seção, não é capítulo.
-  if (page <= 2 && !/^\d+\s*[.\-–—)]\s+|^(cap[ií]tulo|parte|t[ií]tulo|se[cç][ãa]o)\b/i.test(titulo)) return false;
+  if (page <= 2 && !tituloComecaComMarcadorEstrutural(titulo)) return false;
   return true;
 }
 
