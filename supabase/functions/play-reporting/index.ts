@@ -15,8 +15,6 @@ const SERVICE_ACCOUNT_JSON = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON') ??
 
 // Cache em memória (edge function warm) — 5 min
 let tokenCache: { token: string; exp: number } | null = null;
-const metricsCache = new Map<string, { at: number; data: unknown }>();
-const CACHE_MS = 5 * 60 * 1000;
 
 async function getGoogleAccessToken(): Promise<string> {
   if (tokenCache && tokenCache.exp > Date.now() + 60_000) return tokenCache.token;
