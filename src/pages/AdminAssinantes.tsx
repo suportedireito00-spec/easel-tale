@@ -483,29 +483,8 @@ const AdminAssinantes = () => {
   );
 };
 
-function sumMetricLastN(reporting: any, metricName: string, n: number): number {
-  const rows: any[] = reporting?.subs?.body?.rows ?? [];
-  const sorted = [...rows].sort((a, b) => {
-    const da = a.startTime ? `${a.startTime.year}-${String(a.startTime.month).padStart(2, '0')}-${String(a.startTime.day).padStart(2, '0')}` : '';
-    const db = b.startTime ? `${b.startTime.year}-${String(b.startTime.month).padStart(2, '0')}-${String(b.startTime.day).padStart(2, '0')}` : '';
-    return db.localeCompare(da);
-  });
-  const dates = new Set<string>();
-  sorted.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (d) dates.add(d);
-  });
-  const lastN = [...dates].slice(0, n);
-  let total = 0;
-  sorted.forEach((r) => {
-    const d = r.startTime ? `${r.startTime.year}-${r.startTime.month}-${r.startTime.day}` : '';
-    if (!lastN.includes(d)) return;
-    (r.metrics ?? []).forEach((m: any) => {
-      if (m.metric === metricName) total += Number(m.decimalValue?.value ?? m.integerValue ?? 0);
-    });
-  });
-  return total;
-}
+
+
 
 function StatCard({ icon: Icon, label, value, tint }: { icon: any; label: string; value: number | string; tint: string }) {
   return (
