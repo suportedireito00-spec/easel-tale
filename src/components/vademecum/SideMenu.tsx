@@ -6,6 +6,7 @@ import {
   Pencil, Sparkles, Bell as BellIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfileSummary } from '@/hooks/useProfileSummary';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAppUsageTime } from '@/hooks/useAppUsageTime';
 import { motion, AnimatePresence } from 'framer-motion';
