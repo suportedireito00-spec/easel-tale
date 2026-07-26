@@ -143,7 +143,8 @@ async function consumeDeferredDeepLink(navigate: NavigateFn) {
     if (platform === 'android') {
       // Play Install Referrer
       try {
-        const mod: any = await import('@capacitor-community/play-install-referrer').catch(() => null);
+        const pluginName = '@capacitor-community/play-install-referrer';
+        const mod: any = await import(/* @vite-ignore */ pluginName).catch(() => null);
         const plugin = mod?.PlayInstallReferrer;
         if (plugin?.getReferrerDetails) {
           const res = await plugin.getReferrerDetails();
