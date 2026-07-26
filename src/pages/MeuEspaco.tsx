@@ -332,7 +332,7 @@ const MeuEspaco = () => {
         <button
           onClick={goBack}
           aria-label="Voltar"
-          className="absolute top-3 left-3 w-11 h-11 rounded-full bg-black/55 backdrop-blur flex items-center justify-center text-white active:scale-95 transition"
+          className="absolute top-[calc(0.75rem+var(--sai-top,env(safe-area-inset-top,0px)))] left-3 w-11 h-11 rounded-full bg-black/55 backdrop-blur flex items-center justify-center text-white active:scale-95 transition"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
