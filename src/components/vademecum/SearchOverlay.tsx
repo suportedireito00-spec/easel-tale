@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import OcrScanner from './OcrScanner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { track } from '@/lib/analyticsEvents';
 
 import { LEIS_CATALOG } from '@/data/leisCatalog';
 import { getRecentes, getPopularLeiIds, bumpLeiSearch } from '@/lib/leisRecentes';
