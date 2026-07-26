@@ -1,5 +1,8 @@
 // Recebe Real-time Developer Notifications do Google Play via Pub/Sub push.
-// Atualiza public.play_subscriptions quando a assinatura renova, cancela, entra em graça, etc.
+// Cobre:
+//  - subscriptionNotification (compra, renovação, cancelamento, revogação, expiração)
+//  - voidedPurchaseNotification (reembolso do admin, chargeback, refund do usuário)
+//  - oneTimeProductNotification (apenas logado por ora)
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const PACKAGE_NAME = Deno.env.get('ANDROID_PACKAGE_NAME') ?? '';
@@ -16,15 +19,39 @@ type SubscriptionStatus =
   | 'SUBSCRIPTION_STATE_CANCELED'
   | 'SUBSCRIPTION_STATE_EXPIRED';
 
-function mapStatus(gJson: any): SubscriptionStatus {
-  const expiryMs = Number(gJson.expiryTimeMillis ?? 0);
+// Mapeamento oficial dos notificationType do Google (subscription):
+// https://developer.android.com/google/play/billing/rtdn-reference#sub
+const SUB_NOTIF_TYPE: Record<number, string> = {
+  1: 'SUBSCRIPTION_RECOVERED',
+  2: 'SUBSCRIPTION_RENEWED',
+  3: 'SUBSCRIPTION_CANCELED',
+  4: 'SUBSCRIPTION_PURCHASED',
+  5: 'SUBSCRIPTION_ON_HOLD',
+  6: 'SUBSCRIPTION_IN_GRACE_PERIOD',
+  7: 'SUBSCRIPTION_RESTARTED',
+  8: 'SUBSCRIPTION_PRICE_CHANGE_CONFIRMED',
+  9: 'SUBSCRIPTION_DEFERRED',
+  10: 'SUBSCRIPTION_PAUSED',
+  11: 'SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED',
+  12: 'SUBSCRIPTION_REVOKED',
+  13: 'SUBSCRIPTION_EXPIRED',
+  20: 'SUBSCRIPTION_PENDING_PURCHASE_CANCELED',
+};
+
+function mapStatus(gJson: any, notificationType?: number): SubscriptionStatus {
+  const expiryMs = Number(gJson?.expiryTimeMillis ?? 0);
   const nowMs = Date.now();
-  if (gJson.cancelReason != null && expiryMs < nowMs) return 'SUBSCRIPTION_STATE_CANCELED';
-  if (expiryMs < nowMs) return 'SUBSCRIPTION_STATE_EXPIRED';
+  if (notificationType === 12) return 'SUBSCRIPTION_STATE_CANCELED'; // REVOKED
+  if (notificationType === 13) return 'SUBSCRIPTION_STATE_EXPIRED';
+  if (notificationType === 3 && expiryMs < nowMs) return 'SUBSCRIPTION_STATE_CANCELED';
+  if (notificationType === 5) return 'SUBSCRIPTION_STATE_ON_HOLD';
+  if (notificationType === 6) return 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD';
+  if (notificationType === 10) return 'SUBSCRIPTION_STATE_PAUSED';
+  if (gJson?.cancelReason != null && expiryMs < nowMs) return 'SUBSCRIPTION_STATE_CANCELED';
+  if (expiryMs && expiryMs < nowMs) return 'SUBSCRIPTION_STATE_EXPIRED';
   return 'SUBSCRIPTION_STATE_ACTIVE';
 }
 
-// Cache do access token dentro do isolate (evita OAuth handshake em cada evento)
 let tokenCache: { token: string; exp: number } | null = null;
 
 async function getGoogleAccessToken(): Promise<string> {
@@ -57,25 +84,88 @@ async function getGoogleAccessToken(): Promise<string> {
   return json.access_token;
 }
 
-
 Deno.serve(async (req) => {
   try {
-    // Valida token de verificação do Pub/Sub push
     const url = new URL(req.url);
     const token = url.searchParams.get('token');
     if (!PUBSUB_TOKEN || token !== PUBSUB_TOKEN) {
+      console.warn('play-billing-webhook unauthorized (token missing or mismatch)');
       return new Response('unauthorized', { status: 401 });
     }
 
     const body = await req.json();
-    // Pub/Sub push envelope: { message: { data: <base64> } }
     const b64: string | undefined = body?.message?.data;
-    if (!b64) return new Response('no data', { status: 200 });
+    if (!b64) {
+      console.log('play-billing-webhook no data');
+      return new Response('no data', { status: 200 });
+    }
     const decoded = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
+    console.log('play-billing-webhook decoded', JSON.stringify(decoded));
+
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // Test notification enviada pelo Play Console — só confirma que o canal está vivo.
+    if (decoded.testNotification) {
+      console.log('play-billing-webhook TEST notification received', decoded.testNotification);
+      return new Response('ok', { status: 200 });
+    }
+
+    // === Reembolso / estorno / chargeback ===
+    if (decoded.voidedPurchaseNotification) {
+      const v = decoded.voidedPurchaseNotification;
+      const purchaseToken: string | undefined = v.purchaseToken;
+      const orderId: string | undefined = v.orderId;
+      // productType: 1 = subscription, 2 = one-time
+      // refundType: 1 = full refund, 2 = quantity-based partial refund
+      const refundType = v.refundType ?? null;
+
+      if (!purchaseToken && !orderId) {
+        console.warn('voidedPurchaseNotification without token/orderId', v);
+        return new Response('ok', { status: 200 });
+      }
+
+      const patch: Record<string, unknown> = {
+        status: 'SUBSCRIPTION_STATE_CANCELED',
+        cancel_reason: `REFUND${refundType ? `:${refundType}` : ''}`,
+        auto_renewing: false,
+        expires_at: new Date().toISOString(), // derruba premium AGORA
+        latest_notification_type: 'VOIDED_PURCHASE',
+        latest_notification_at: new Date().toISOString(),
+        raw_payload: decoded,
+      };
+
+      let q = admin.from('play_subscriptions').update(patch);
+      if (purchaseToken) q = q.eq('purchase_token', purchaseToken);
+      else q = q.eq('order_id', orderId!);
+
+      const { error, count } = await q.select('id', { count: 'exact' });
+      if (error) {
+        console.error('voidedPurchase update failed', error);
+      } else {
+        console.log('voidedPurchase applied', { purchaseToken, orderId, refundType, rows: count });
+      }
+      return new Response('ok', { status: 200 });
+    }
+
+    // === Compra única (log apenas) ===
+    if (decoded.oneTimeProductNotification) {
+      console.log('oneTimeProductNotification', decoded.oneTimeProductNotification);
+      return new Response('ok', { status: 200 });
+    }
+
+    // === Assinatura ===
     const sub = decoded.subscriptionNotification;
-    if (!sub) return new Response('ignored', { status: 200 });
+    if (!sub) {
+      console.log('play-billing-webhook ignored (no known notification key)');
+      return new Response('ignored', { status: 200 });
+    }
 
     const { subscriptionId: productId, purchaseToken, notificationType } = sub;
+    const notifTypeLabel = SUB_NOTIF_TYPE[notificationType] ?? String(notificationType ?? '');
+
     const accessToken = await getGoogleAccessToken();
     const googleUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
     const gRes = await fetch(googleUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -85,13 +175,17 @@ Deno.serve(async (req) => {
       return new Response('ok', { status: 200 });
     }
 
-    const status = mapStatus(gJson);
+    const status = mapStatus(gJson, notificationType);
     const expiryMs = Number(gJson.expiryTimeMillis ?? 0);
+    const nowMs = Date.now();
 
-    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    // Se foi revoke/cancel/expire e o Google ainda não devolveu expiry no passado,
+    // forçamos expiração imediata para não segurar premium com base no relógio do cliente.
+    let effectiveExpiryMs = expiryMs;
+    if ((notificationType === 12 || notificationType === 13) && (!expiryMs || expiryMs > nowMs)) {
+      effectiveExpiryMs = nowMs;
+    }
 
-    // Se a linha ainda não existe (RTDN chegou antes do validate-purchase do app),
-    // tenta resolver o user_id via developerPayload que enviamos no ack.
     const developerUserId =
       (typeof gJson.developerPayload === 'string' && gJson.developerPayload) ||
       gJson.obfuscatedExternalAccountId ||
@@ -105,23 +199,23 @@ Deno.serve(async (req) => {
       status,
       auto_renewing: !!gJson.autoRenewing,
       start_time: gJson.startTimeMillis ? new Date(Number(gJson.startTimeMillis)).toISOString() : null,
-      expires_at: expiryMs ? new Date(expiryMs).toISOString() : null,
+      expires_at: effectiveExpiryMs ? new Date(effectiveExpiryMs).toISOString() : null,
       cancel_reason: gJson.cancelReason != null ? String(gJson.cancelReason) : null,
-      latest_notification_type: notificationType ?? null,
+      latest_notification_type: notifTypeLabel,
       latest_notification_at: new Date().toISOString(),
       raw_payload: gJson,
     };
-    // Remove chaves undefined (evita sobrescrever com null quando não sabemos)
     Object.keys(patch).forEach(k => patch[k] === undefined && delete patch[k]);
 
     const { error: upErr } = await admin
       .from('play_subscriptions')
       .upsert(patch, { onConflict: 'purchase_token' });
     if (upErr) console.error('upsert play_subscriptions falhou', upErr);
+    else console.log('subscriptionNotification applied', { productId, notifTypeLabel, status });
 
     return new Response('ok', { status: 200 });
   } catch (err) {
     console.error('play-billing-webhook error', err);
-    return new Response('error', { status: 200 }); // 200 para Pub/Sub não reenviar em loop
+    return new Response('error', { status: 200 }); // 200 pra Pub/Sub não reenviar em loop
   }
 });
