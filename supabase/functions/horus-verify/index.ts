@@ -113,19 +113,22 @@ Deno.serve(async (req) => {
       await admin.from("horus_verification_codes").update({ consumed_at: new Date().toISOString() }).eq("id", row.id);
 
       // Transferência atômica: desvincula da conta antiga (se houver), limpa memória
-      // do WhatsApp, cria o vínculo com a nova conta e sincroniza profiles.telefone.
+      // do WhatsApp, cria o vínculo com a nova conta, sincroniza profiles.telefone e
+      // grava um aviso de takeover pro dono antigo (realtime).
+      console.log("[horus-verify] confirm ok, chamando RPC transferir_numero", { userId, phoneDb });
       const { data: rpcData, error: rpcErr } = await admin.rpc("horus_transferir_numero", {
         _new_user_id: userId,
         _phone: phoneDb,
       });
       if (rpcErr) {
-        console.error("horus_transferir_numero fail", rpcErr);
+        console.error("[horus-verify] horus_transferir_numero fail", rpcErr);
         const msg = String(rpcErr.message || "");
         if (msg.includes("rate_limited")) {
           return json({ error: "Muitas transferências recentes deste número. Tente novamente em algumas horas." }, 429);
         }
-        return json({ error: "Falha ao vincular número. Tente novamente." }, 500);
+        return json({ error: "Falha ao vincular número. Tente novamente.", detail: msg }, 500);
       }
+      console.log("[horus-verify] RPC ok", rpcData);
 
       const transferred = Boolean((rpcData as any)?.transferred);
       const nome = String((rpcData as any)?.display_name || "").trim();
