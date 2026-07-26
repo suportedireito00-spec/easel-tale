@@ -32,6 +32,8 @@ import { slugToTipo, tipoToSlug, leiToSlug, leiPath, findLeiBySlug, CATEGORIAS_F
 import { LEIS_CATALOG } from '@/data/leisCatalog';
 import { Navigate } from 'react-router-dom';
 import { track } from '@/lib/analyticsEvents';
+import { toggleArtigoFavorito, listNumerosFavoritosByTabela, ARTIGOS_FAV_EVENT } from '@/lib/artigosFavoritos';
+import { isFavorito as isLeiFavorita, toggleFavorito as toggleLeiFavorito, LEIS_FAVORITOS_EVENT } from '@/lib/leisFavoritos';
 
 const TIPO_CONFIG: Record<string, { label: string; icon: React.ElementType; bg: string }> = {
   constituicao: { label: 'Constituição', icon: Landmark, bg: 'from-amber-500/90 to-amber-700/80' },
@@ -226,6 +228,8 @@ const CategoriaLegislacao = () => {
   const [loadingDbAlteracoes, setLoadingDbAlteracoes] = useState(false);
   const [grifadoNumeros, setGrifadoNumeros] = useState<Set<string>>(new Set());
   const [anotadoNumeros, setAnotadoNumeros] = useState<Set<string>>(new Set());
+  const [favArtigoNumeros, setFavArtigoNumeros] = useState<Set<string>>(new Set());
+  const [leiFavToggle, setLeiFavToggle] = useState(0);
 
   // Load user's grifos & anotacoes for the selected lei (for tag indicators)
   useEffect(() => {
@@ -246,6 +250,33 @@ const CategoriaLegislacao = () => {
     })();
     return () => { cancelled = true; };
   }, [selectedTabelaNome]);
+
+  // Hidrata os favoritos (Meus Artigos) do usuário para a lei selecionada.
+  useEffect(() => {
+    if (!selectedTabelaNome) { setFavArtigoNumeros(new Set()); return; }
+    let cancelled = false;
+    const load = () => {
+      listNumerosFavoritosByTabela(selectedTabelaNome).then((nums) => {
+        if (!cancelled) setFavArtigoNumeros(new Set(nums));
+      }).catch(() => {});
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener(ARTIGOS_FAV_EVENT, onChange);
+    return () => { cancelled = true; window.removeEventListener(ARTIGOS_FAV_EVENT, onChange); };
+  }, [selectedTabelaNome]);
+
+  // Re-render quando o favorito da própria lei mudar.
+  useEffect(() => {
+    const bump = () => setLeiFavToggle((n) => n + 1);
+    window.addEventListener(LEIS_FAVORITOS_EVENT, bump);
+    window.addEventListener('storage', bump);
+    return () => {
+      window.removeEventListener(LEIS_FAVORITOS_EVENT, bump);
+      window.removeEventListener('storage', bump);
+    };
+  }, []);
+
 
   // Fetch DB alteracoes when novidades panel opens
   useEffect(() => {
@@ -360,7 +391,33 @@ const CategoriaLegislacao = () => {
       localStorage.setItem('vademecum-favoritos', JSON.stringify([...next]));
       return next;
     });
+    // Persistência real em Supabase (para aparecer em Meu Espaço → Meus Artigos)
+    const artigo = artigos.find((a) => a.id === id);
+    if (artigo && selectedTabelaNome) {
+      const numero = String(artigo.numero || '').replace(/^Art\.\s*/i, '').trim() || String(artigo.numero || '');
+      const preview = String((artigo as any).caput || (artigo as any).texto || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 240);
+      // Optimistic set update
+      setFavArtigoNumeros((prev) => {
+        const next = new Set(prev);
+        if (next.has(numero)) next.delete(numero); else next.add(numero);
+        return next;
+      });
+      toggleArtigoFavorito({
+        tabela_codigo: selectedTabelaNome,
+        numero_artigo: numero,
+        conteudo_preview: preview || null,
+      }).catch(() => {});
+    }
   };
+
+  const isArtigoFav = (a: { id: string; numero: string | number }) => {
+    const num = String(a.numero || '').replace(/^Art\.\s*/i, '').trim();
+    return favoritos.has(a.id) || favArtigoNumeros.has(num) || favArtigoNumeros.has(String(a.numero));
+  };
+
 
   const UF_ESTADUAL = tipo && /^estadual_([a-z]{2})$/i.exec(tipo)?.[1]?.toUpperCase();
   const config = tipo
@@ -1447,7 +1504,7 @@ const CategoriaLegislacao = () => {
                     isHighlighted={highlightedArtigoId === artigo.id}
                     accentColor={leiAccent}
                     withShine={virtualItem.index < 6}
-                    tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+                    tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
                   />
                 </div>
               );
@@ -1463,7 +1520,7 @@ const CategoriaLegislacao = () => {
             isHighlighted={highlightedArtigoId === artigo.id}
             accentColor={leiAccent}
             withShine={i < 6}
-            tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+            tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
           />
         ))}
         {visibleArtigos.length === 0 && loadedKey === selectedTabelaNome && !loadingArtigos && (
@@ -1520,7 +1577,7 @@ const CategoriaLegislacao = () => {
                   {isCapExpanded && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-3 mt-2 space-y-2">
                       {capGroup.artigos.map((artigo, i) => (
-                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                       ))}
                     </motion.div>
                   )}
@@ -1626,7 +1683,7 @@ const CategoriaLegislacao = () => {
                             {isCapExpanded && (
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pl-3 mt-2 space-y-2">
                                 {capGroup.artigos.map((artigo, i) => (
-                                  <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                                  <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                                 ))}
                               </motion.div>
                             )}
@@ -1635,7 +1692,7 @@ const CategoriaLegislacao = () => {
                       })
                     ) : (
                       allArts.map((artigo, i) => (
-                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
+                        <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => setOpenArtigo(artigo)} accentColor={leiAccent} tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
                       ))
                     )}
                   </motion.div>
@@ -1660,7 +1717,7 @@ const CategoriaLegislacao = () => {
               index={i}
               onClick={() => openArtigoWithRecent(artigo)}
               accentColor={leiAccent}
-              tags={{ favorito: favoritos.has(artigo.id), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
+              tags={{ favorito: isArtigoFav(artigo), grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }}
             />
           ));
         })()}
@@ -1737,8 +1794,8 @@ const CategoriaLegislacao = () => {
     // ---- Overlay panel content builders ----
     const favContent = (
       <div className="space-y-2 pb-8">
-        {artigos.filter(a => favoritos.has(a.id)).length > 0 ? (
-          artigos.filter(a => favoritos.has(a.id)).map((artigo, i) => (
+        {artigos.filter(a => isArtigoFav(a)).length > 0 ? (
+          artigos.filter(a => isArtigoFav(a)).map((artigo, i) => (
             <ArtigoCard key={artigo.id} artigo={artigo} index={i} onClick={() => { setOverlayPanel(null); setOpenArtigo(artigo); }} accentColor={leiAccent} tags={{ favorito: true, grifado: grifadoNumeros.has(artigo.numero), anotado: anotadoNumeros.has(artigo.numero) }} />
           ))
         ) : (
@@ -2192,6 +2249,32 @@ const CategoriaLegislacao = () => {
               >
                 <ArrowLeft className="w-6 h-6 text-white drop-shadow" />
               </button>
+              {/* Botão de favoritar a lei — mesma linha do voltar, à direita */}
+              {(() => {
+                const selectedLei = leis.find((l) => l.id === selectedLeiId);
+                if (!selectedLei) return null;
+                const fav = isLeiFavorita(selectedLei.id);
+                void leiFavToggle; // força re-render em mudanças externas
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleLeiFavorito({
+                        tipo: selectedLei.tipo,
+                        leiId: selectedLei.id,
+                        nome: selectedLei.nome,
+                        descricao: selectedLei.descricao,
+                        tabela_nome: selectedLei.tabela_nome,
+                      });
+                      setLeiFavToggle((n) => n + 1);
+                    }}
+                    aria-label={fav ? 'Remover dos favoritos' : 'Favoritar lei'}
+                    className={`absolute right-4 top-[calc(var(--sai-top,env(safe-area-inset-top,0px))+12px)] z-20 w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl border shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-95 transition touch-manipulation select-none ${fav ? 'bg-rose-500/25 border-rose-300/50' : 'bg-white/10 border-white/25'}`}
+                  >
+                    <Heart className={`w-6 h-6 drop-shadow ${fav ? 'text-rose-400 fill-rose-400' : 'text-white'}`} />
+                  </button>
+                );
+              })()}
               {/* Texto */}
               <div className="absolute inset-0 flex flex-col items-center justify-end text-center px-6 pb-5">
                 <p
@@ -2442,7 +2525,7 @@ const CategoriaLegislacao = () => {
           onClose={() => { setOpenArtigo(null); setOpenFromNovidades(false); setOpenModInfo(null); setSearchQuery(''); }}
           forceShowRedacao={openFromNovidades}
           modificationInfo={openModInfo}
-          isFavorito={openArtigo ? favoritos.has(openArtigo.id) : false}
+          isFavorito={openArtigo ? isArtigoFav(openArtigo) : false}
           onToggleFavorito={() => openArtigo && toggleFavorito(openArtigo.id)}
           showNomenJuris={selectedLeiId === 'cp' || selectedLeiId === 'cpm'}
           tabelaNome={selectedTabelaNome || undefined}

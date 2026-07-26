@@ -1,87 +1,47 @@
-## Objetivo
+## Diagnóstico
 
-1. Cadastro → triagem instantâneo (sem os ~5s de tela branca).
-2. Triagem mais completa: depois de coletar nome/WhatsApp, entrar cenas Remotion elegantes com o **nome da pessoa** e depois explicando as **funções do app** (Horus, Biblioteca, Radar, Notificações), no estilo do onboarding do Horus.
-3. Layout mais respirado (margens topo/base), responsivo e sem travar.
-4. Ajustar o Horus onboarding: subir a faixa dos efeitos Remotion na parte de baixo, e otimizar performance.
+Encontrei a causa raiz do problema em "Meus Artigos":
 
----
+- O botão de coração dentro do `ArtigoBottomSheet` (a folha que abre quando você toca em um artigo) **só dispara analytics** (`appEvents.favoritarArtigo` → GA/Meta) e chama `onToggleFavorito` da tela pai (`CategoriaLegislacao`), que **só grava um Set em `localStorage`** (`vademecum-favoritos`).
+- A página `/pessoal/artigos` (Meus Artigos) lê da tabela do banco `artigos_favoritos`, que **nunca recebe insert/delete**. Por isso ela mostra "0" e a mensagem de vazio.
+- Existem duas "verdades" para favorito de artigo hoje: o coração dentro do bottom sheet e o coração no card da lista. Nenhum dos dois persiste no Supabase.
+- "Minhas Leis" também é 100% localStorage (`leis_favoritas_v1`). Vou manter localStorage como espelho para funcionar offline, mas passar a persistir também no Supabase quando o usuário estiver logado.
 
-## 1) Instantâneo pós-cadastro
+Também vou tornar todo o "Meu Espaço" plenamente funcional (rotas, métricas e prefetch já existem — falta o botão de coração na página da lei e a bottom sheet dos artigos favoritos por lei).
 
-Hoje, ao criar conta, o `ProtectedRoute` mostra um `Loader2` até `initialCheckDone`; e a `/onboarding` só monta depois. Ajustes:
+## O que vou construir
 
-- `src/App.tsx` `ProtectedRoute`: se `user` existe e ainda **não** há cache local nem resposta do Supabase, tratar como `needsOnboarding = true` **otimista** (assume novo usuário) e liberar render imediatamente em vez de mostrar o spinner. A confirmação vem em background e só corrige se já estiver completo.
-- `src/hooks/useAuth.tsx`: após `signUp` bem-sucedido, gravar flag `just_signed_up=1` em `sessionStorage` para o `ProtectedRoute` pular direto para `/onboarding` sem nenhum round-trip.
-- `src/pages/Auth.tsx`: no submit de `signup`, após sucesso chamar `navigate('/onboarding', { replace: true })` imediatamente (não esperar redirect via `Navigate`).
-- Pré-carregar o chunk da triagem (`import('@/components/onboarding/CadastroOnboardingOverlay')`) assim que o usuário focar o campo de e-mail no modo signup, para o overlay abrir sem esperar bundle.
+### 1) Persistência real de favorito de artigo (Supabase)
+- Criar helper único `src/lib/artigosFavoritos.ts` com `toggleArtigoFavorito({ tabela, numero, conteudo })`, `isArtigoFavorito(tabela, numero)`, `subscribe(...)`.
+- Escreve na tabela `artigos_favoritos` (já existe, com RLS por `user_id`), atualiza cache do React Query e emite evento `artigos:favoritos:changed` para as telas reagirem.
+- Se o usuário não estiver logado, cai no localStorage (`artigos_favoritos_v1`) e sincroniza para o Supabase no próximo login.
+- Ligar esse helper no `ArtigoBottomSheet` (coração topo esquerdo) e no card de artigo (`CategoriaLegislacao.toggleFavorito`) — as duas superfícies passam a chamar o mesmo helper.
 
-## 2) Triagem expandida com cenas Remotion (nome + funções)
+### 2) Coração para favoritar a Lei (topo direito) — mesma linha do voltar
+- Adicionar botão coração no header da página de lei aberta, alinhado à direita, com estado `isFavorito(lei.leiId)`.
+- Clique → `toggleFavorito` de `@/lib/leisFavoritos` (já existe).
+- Também garantir que o mesmo botão dentro do `SearchOverlay` (já implementado) permanece funcional.
 
-A versão ativa é a `TriagemVersaoC`. Vou estender o fluxo:
+### 3) Bottom sheet em "Minhas Leis" com artigos favoritos por lei
+- Na página `/pessoal/leis`, ao tocar num cartão de lei favorita: abrir **bottom sheet 90dvh** listando os artigos daquela lei que o usuário favoritou (query filtrada por `tabela_codigo`).
+- Cabeçalho com sigla + nome da lei, botão para "abrir a lei" e cards de cada artigo (número + preview) que navegam para o artigo específico.
+- Se não houver nenhum artigo favorito daquela lei, mostrar estado vazio ("Você ainda não favoritou artigos desta lei").
 
-Passos atuais: `abertura → persona → interesses → dores → nome → whatsapp → finish`.
-
-Novo fluxo:
-
-```text
-abertura → persona → interesses → dores → nome → whatsapp
-        → cena Remotion "Prazer, {nome}"   (2.5s)
-        → cena Remotion "Biblioteca"       (3s)
-        → cena Remotion "Radar de Leis"    (3s)
-        → cena Remotion "Horus WhatsApp"   (3s)
-        → cena Remotion "Notificações"     (3s)
-        → cena final "Bora estudar, {nome}" (2s) → onFinished
-```
-
-Implementação (sem bundlar Remotion no app — usar Framer Motion já presente, no mesmo estilo cinematográfico do `HorusIntroVideo`):
-
-- Novo arquivo `src/components/onboarding/CadastroFeaturesReel.tsx`:
-  - Full-screen, gradiente por cena (cores já usadas em `CARD_BG`), tipografia grande serifada + sans, ícones lucide-react animados (BookOpen, Radar, MessageCircle, Bell).
-  - Cada cena com entrada/saída (blur+scale+stagger de palavras), motion coreografada por `useReducedMotion` e `AnimatePresence mode="wait"`.
-  - Auto-avanço por timers com barra de progresso segmentada no topo (mesma do TriagemVersaoC).
-  - Botão "Pular" discreto (canto superior direito) para quem quer ir direto.
-  - Áudio: reutiliza `useTriagemAudio` (whoosh entre cenas, ding no final).
-- `TriagemVersaoC.tsx`:
-  - Adicionar step `features` após `whatsapp`. Ao entrar em `features`, renderizar `<CadastroFeaturesReel nome={data.nome} onDone={() => onFinished(next)} />`.
-  - Ajustar `advance()` para não chamar `onFinished` direto no último passo — passar por `features` primeiro.
-- Layout dos cartões: aumentar `padding` top/bottom (`pt-[calc(env(safe-area-inset-top)+16px)]` e `pb-[calc(env(safe-area-inset-bottom)+16px)]`), garantir `max-h-dvh` com scroll interno em telas curtas; textos e botões com `clamp()` para responsivo.
-
-## 3) Performance da triagem
-
-- Remover re-renders desnecessários: mover `PERSONAS/DORES/INTERESSES` para fora do componente (já estão), mas envolver handlers em `useCallback` e cards em `memo`.
-- Trocar `AnimatePresence` de página inteira por transições mais leves (`initial=false` na primeira montagem, `layout` só onde necessário).
-- Pré-carregar ícones e fontes: `<link rel="preload">` das duas fontes usadas.
-- Lazy import de `framer-motion` já está no bundle; garantir que `CadastroFeaturesReel` seja `React.lazy` para não engordar a tela inicial.
-- Corrigir warnings de console que apareçam durante execução da triagem (checar `code--read_console_logs` após build).
-
-## 4) Horus onboarding — subir a faixa e otimizar
-
-- `src/components/horus/onboarding/HorusIntroVideo.tsx`: a faixa inferior de efeitos hoje fica em `bottom: 0`. Ajustar para `bottom: calc(env(safe-area-inset-bottom, 0px) + 12%)` (respiro do gesture bar e mais protagonismo visual), com fallback responsivo por altura.
-- Reduzir custo de render: 
-  - `will-change: transform, opacity` só nos elementos animados ativos.
-  - Remover `filter: blur()` em elementos que se movem — trocar por gradiente radial estático + opacidade animada.
-  - Cortar partículas em `< 380px` de largura (dispositivos pequenos) para 40% do total.
-  - Usar `AnimatePresence` com `mode="popLayout"` em vez de `wait` onde possível.
-
----
+### 4) Meu Espaço — funcionalidade e métricas
+- Auditar cada tile do "Acesso rápido" (Minhas anotações, Meus grifos, Livros, Filmes, Jurisprudências, Temáticas) e garantir que a rota abre e que `PESSOAL_KEYS` está prefetchado.
+- Contadores no perfil (MINHAS LEIS / MEUS ARTIGOS / MINHAS LEITURAS) passam a ler os counts corretos (agora que artigos_favoritos é populado de verdade).
+- Feed "MINHA ATIVIDADE" (`meuEspacoFeed`) já lê `artigos_favoritos` — vai começar a mostrar entradas naturalmente após (1).
+- Analytics: emitir `track('pessoal_open', { area })` no clique de cada tile (já parcialmente instrumentado — vou completar).
 
 ## Detalhes técnicos
 
-Arquivos criados:
-- `src/components/onboarding/CadastroFeaturesReel.tsx` — reel de 5 cenas + saudação com nome.
-
-Arquivos editados:
-- `src/App.tsx` — ProtectedRoute otimista para novo usuário.
-- `src/hooks/useAuth.tsx` — flag `just_signed_up` no sessionStorage.
-- `src/pages/Auth.tsx` — navigate imediato + preload do chunk.
-- `src/components/onboarding/versoes/TriagemVersaoC.tsx` — passo `features`, margens safe-area, memo/callback.
-- `src/components/horus/onboarding/HorusIntroVideo.tsx` — subir faixa inferior, cortar custo de blur/partículas.
-
-Não altera schema, edge functions ou lógica de negócio.
+- Tabela usada: `public.artigos_favoritos(user_id, tabela_codigo, numero_artigo, conteudo_preview, artigo_id?)` — já existente, com RLS. **Não precisa migration.**
+- Invalidação: após toggle, `queryClient.invalidateQueries({ queryKey: PESSOAL_KEYS.artigos(uid) })` + evento window para telas não-Query.
+- Bottom sheet: reutilizar `Sheet` do shadcn `side="bottom"` com `h-[90dvh]`, mesmo padrão do `ArtigoBottomSheet`.
+- Backfill: no primeiro carregamento após deploy, se houver dados no localStorage antigo (`vademecum-favoritos`) e o usuário estiver logado, upsert em massa no Supabase e limpar a chave antiga.
 
 ## Fora de escopo
 
-- Triagens A e B (usuário está usando C como ativa).
-- Fluxo de Google/Apple sign-in (já vai para `/onboarding` normalmente).
-- Rebuild com Remotion CLI (o "estilo Remotion" será feito com Framer Motion já instalado — mesma abordagem do `HorusIntroVideo` atual).
+- Não vou mexer no design system, cores ou tipografia.
+- Não vou alterar o fluxo do bottom sheet do artigo em si (só o handler do coração).
+- Não vou criar tabelas novas nem migrations.
