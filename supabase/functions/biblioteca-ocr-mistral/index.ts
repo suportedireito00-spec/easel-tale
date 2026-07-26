@@ -605,8 +605,8 @@ function tryDriveAltUrl(url: string): string | null {
 // ============================================================
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL_FAST = "google/gemini-2.5-flash-lite";
-const MODEL_PRO = "google/gemini-2.5-flash-lite";
+const MODEL_FAST = "google/gemini-flash-latest";
+const MODEL_PRO = "google/gemini-flash-latest";
 
 interface RefinoBody { action: "refino"; livro_id: string; livro_tabela: string; force?: boolean; }
 
@@ -891,7 +891,7 @@ function classificarPaginaLivro(md: string, page: number): PageClassificacao {
   // Capa/folha de rosto: início do PDF, pouco texto corrido e título grande isolado.
   const poucosParagrafos = bodyText.length < 220;
   const soTitulos = headingLines.length > 0 && bodyText.length < 120;
-  const pareceCapa = page <= 3 && (soTitulos || (poucosParagrafos && linhas.length <= 12)) &&
+  const pareceCapa = page <= 2 && (soTitulos || (poucosParagrafos && linhas.length <= 12)) &&
     !/\b(art\.?|cap[ií]tulo|se[cç][ãa]o|lei|constitui[cç][aã]o|or[cç]amento|controle|princ[ií]pio)\b.{40,}/i.test(md);
   if (pareceCapa) return { page, kind: "capa", reason: "inicio_sem_texto_corrido" };
 
@@ -961,10 +961,18 @@ Responda EXATAMENTE neste JSON, sem comentários:
 {"capitulos":[{"numero":1,"titulo":"...","pagina_inicio":N,"pagina_fim":M,"epigrafe":"opcional"}],
  "preliminaresPaginas":[1,2,3,157,158]}
 
+Processo editorial obrigatório:
+1. Agente de estrutura: separe capa, índice/sumário impresso e conteúdo real.
+2. Agente de validação: rejeite títulos que aparecem apenas no índice/sumário impresso.
+3. Agente de montagem: cada capítulo precisa começar na página onde o texto do capítulo aparece de verdade.
+
 Regras:
 - Numere capítulos sequencialmente a partir de 1.
 - pagina_inicio DEVE apontar para a página onde o capítulo REALMENTE começa (não onde é listado no sumário).
 - Não sobreponha faixas de capítulos.
+- Nunca use capa, folha de rosto, página só com o título do livro, ÍNDICE ou SUMÁRIO como capítulo.
+- Não transforme subtítulos internos, princípios isolados ou artigos legais em capítulos principais.
+- Não crie capítulo para o título geral do livro quando ele aparece sozinho nas páginas iniciais.
 - Se você identificar páginas com listas do tipo "Capítulo 1 .... 25 / Capítulo 2 .... 47" ou "SUMÁRIO", elas são preliminaresPaginas — nunca conteúdo de capítulo.
 - Se não houver capítulos claros, use apenas Parte/Livro/Título/Seção.
 - Título dos capítulos: SEM prefixo "Capítulo N" (já será renderizado). Apenas o título.
