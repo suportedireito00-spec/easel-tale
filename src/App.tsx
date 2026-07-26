@@ -42,6 +42,7 @@ import { usePushJourneyTracker } from "@/hooks/usePushJourneyTracker";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useHorusStatsSync } from "@/hooks/useHorusStatsSync";
 import { useSessionTracker } from "@/hooks/useSessionTracker";
+import { useDesktopSessionGuard } from "@/hooks/useDesktopSessionGuard";
 import { useProfileSummary } from "@/hooks/useProfileSummary";
 import brasaoImgAsset from '@/assets/brasao-republica.webp';
 const brasaoImg = brasaoImgAsset;
@@ -386,9 +387,11 @@ function LazyFallback() {
 }
 
 function PresenceWrapper() {
+  const { user } = useAuth();
   usePresenceTracker();
   useHorusStatsSync();
   useSessionTracker();
+  useDesktopSessionGuard(!!user);
   return null;
 }
 

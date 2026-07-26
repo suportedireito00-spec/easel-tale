@@ -2672,6 +2672,7 @@ export type Database = {
           action_link: string | null
           claimed_at: string | null
           created_at: string
+          desktop_id: string | null
           email: string | null
           expires_at: string
           otp_hash: string | null
@@ -2683,6 +2684,7 @@ export type Database = {
           action_link?: string | null
           claimed_at?: string | null
           created_at?: string
+          desktop_id?: string | null
           email?: string | null
           expires_at?: string
           otp_hash?: string | null
@@ -2694,12 +2696,43 @@ export type Database = {
           action_link?: string | null
           claimed_at?: string | null
           created_at?: string
+          desktop_id?: string | null
           email?: string | null
           expires_at?: string
           otp_hash?: string | null
           status?: string
           token?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      desktop_sessions: {
+        Row: {
+          created_at: string
+          desktop_id: string
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          desktop_id: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          desktop_id?: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
