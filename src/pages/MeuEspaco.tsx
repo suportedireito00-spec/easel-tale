@@ -455,7 +455,7 @@ const MeuEspaco = () => {
       </div>
 
       {/* Minha atividade — calendário + histórico */}
-      <div className="px-5 mt-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+      <div className="px-5 mt-6 pb-[calc(4rem+var(--sai-bottom,env(safe-area-inset-bottom,0px)))]">
         <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Minha atividade</p>
 
         {/* Faixa de dias — hoje à esquerda, retrocedendo */}
