@@ -735,7 +735,14 @@ async function handleRefino(body: RefinoBody) {
         partes.push(`<!-- page:${p} -->\n\n${md}`);
       }
       const conteudo = partes.join("\n\n");
-      const numero = c.numero ?? idx + 1;
+      // Descarta capítulos-fantasma (título vindo do SUMÁRIO impresso sem página real de conteúdo).
+      // Sem isso o leitor mostra só a capa e "pula" para o próximo capítulo.
+      const textoUtil = conteudo.replace(/<!--[^>]*-->/g, "").replace(/\s+/g, " ").trim();
+      if (textoUtil.length < 40) {
+        console.warn(`[refino] descartando capítulo vazio "${c.titulo}" (páginas ${inicio}-${fim})`);
+        continue;
+      }
+      const numero = capitulos.length + 1;
       capitulos.push({
         numero, titulo: c.titulo,
         capa_md: montarCapaCapitulo({ numero, titulo: c.titulo, epigrafe: c.epigrafe,
