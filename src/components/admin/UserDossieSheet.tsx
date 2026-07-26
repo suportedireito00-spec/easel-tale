@@ -37,6 +37,8 @@ interface Dossie {
   eventos: { label: string; count: number }[];
   contadores: { favoritos: number; grifos: number; anotacoes: number };
   assinatura: any;
+  horus: any;
+  horusStats: any;
 }
 
 const GAP_MAX = 10 * 60 * 1000; // 10min entre pings = mesma sessão de tela
