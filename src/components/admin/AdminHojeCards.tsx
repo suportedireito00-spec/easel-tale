@@ -289,6 +289,98 @@ export function AdminHojeCards() {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={totaisOpen} onOpenChange={setTotaisOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl h-[92vh] max-h-[92vh] overflow-y-auto p-0 bg-background border-border">
+          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border/50 text-left">
+            <SheetTitle className="font-display text-base font-bold text-foreground">
+              {open ? `Totais · ${titles[open]}` : 'Totais'}
+            </SheetTitle>
+            <p className="font-body text-[11.5px] text-muted-foreground mt-0.5">Métricas gerais acumuladas</p>
+          </SheetHeader>
+
+          <div className="p-3 space-y-3">
+            {totaisLoading || !totais ? (
+              <div className="flex justify-center py-12 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+            ) : totais.error ? (
+              <p className="font-body text-sm text-muted-foreground text-center py-10">Acesso restrito a administradores.</p>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-primary/40 bg-primary/10 px-4 py-5 text-center">
+                  <div className="font-display text-4xl font-bold text-primary leading-none">{totais.total ?? 0}</div>
+                  <div className="font-body text-[12px] text-muted-foreground mt-1.5">Total acumulado</div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { l: 'Hoje', v: totais.hoje },
+                    { l: '7 dias', v: totais.d7 },
+                    { l: '30 dias', v: totais.d30 },
+                  ].map((x) => (
+                    <div key={x.l} className="rounded-2xl border border-border/60 bg-secondary/30 px-3 py-3 text-center">
+                      <div className="font-display text-xl font-bold text-foreground leading-none">{x.v ?? 0}</div>
+                      <div className="font-body text-[11px] text-muted-foreground mt-1">{x.l}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-secondary/30 p-4">
+                  <div className="font-body text-[13px] font-semibold text-foreground mb-3">Origem da conta</div>
+                  <div className="space-y-2.5">
+                    {(['google', 'apple', 'email'] as const).map((p) => {
+                      const v = Number(totais.providers?.[p] || 0);
+                      const tot = Math.max(1, Number(totais.total || 1));
+                      const pct = Math.round((v / tot) * 100);
+                      return (
+                        <div key={p}>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <ProviderTag provider={p} />
+                            <span className="font-body text-[12.5px] text-foreground">
+                              {v} <span className="text-muted-foreground">({pct}%)</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { l: 'Premium', v: totais.premium },
+                    { l: 'Com número', v: totais.com_telefone },
+                    { l: 'Onboarding', v: totais.onboarding },
+                  ].map((x) => (
+                    <div key={x.l} className="rounded-2xl border border-border/60 bg-secondary/30 px-3 py-3 text-center">
+                      <div className="font-display text-xl font-bold text-foreground leading-none">{x.v ?? 0}</div>
+                      <div className="font-body text-[11px] text-muted-foreground mt-1">{x.l}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {Array.isArray(totais.paises) && totais.paises.length > 0 && (
+                  <div className="rounded-2xl border border-border/60 bg-secondary/30 divide-y divide-border/50 overflow-hidden">
+                    <div className="px-4 py-3 font-body text-[13px] font-semibold text-foreground">Países</div>
+                    {totais.paises.map((p: any) => (
+                      <div key={p.pais} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="font-body text-[13px] text-foreground truncate">{p.pais}</span>
+                        <span className="font-body text-[13px] text-muted-foreground">{p.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+
+
       <UserDossieSheet
         userId={dossie?.userId || null}
         nome={dossie?.title}
