@@ -15,6 +15,7 @@ const CONSENT_KEY = "ga_consent";
 import { fbGrantConsent, fbDenyConsent, fbPageView } from "./fbPixel";
 import { initGoogleAds, getAdsId } from "./googleAds";
 import { nativeSetConsent, nativeSetUserId, nativeLogScreen } from "./nativeAnalytics";
+import { flushOfflineQueue, initTrackClickListener, trackScreen, trackSetUser } from "./analyticsEvents";
 
 type ConsentState = "granted" | "denied" | null;
 
