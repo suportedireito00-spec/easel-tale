@@ -14,8 +14,12 @@ import { App as CapacitorApp } from '@capacitor/app';
  */
 
 let listener: { remove: () => void } | undefined;
+let appUrlOpened = false;
 
 type NavigateFn = (path: string) => void;
+
+const SMART_LINK_ORIGIN = 'https://vacatio.com.br';
+const DEFERRED_CONSUMED_KEY = 'vacatio.deferred_deep_link_consumed';
 
 function parseDeepLink(url: string): string | null {
   // OAuth callback → deixar useAuth cuidar
