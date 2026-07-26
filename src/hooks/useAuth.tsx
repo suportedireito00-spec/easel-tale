@@ -170,7 +170,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (!error) {
+      // Sinaliza ao ProtectedRoute que o próximo render deve ir direto pra
+      // /onboarding, sem esperar o round-trip do Supabase pra profiles.
+      try { window.sessionStorage.setItem('just_signed_up', '1'); } catch {}
       import('@/lib/appEvents').then(({ appEvents }) => appEvents.signUp('email')).catch(() => {});
+      // Aquecimento do chunk da triagem — abre imediato quando o app
+      // navegar pra /onboarding.
+      import('@/components/onboarding/CadastroOnboardingOverlay').catch(() => {});
+      import('@/components/onboarding/CadastroFeaturesReel').catch(() => {});
     }
     return { error: error as Error | null };
   }, []);
