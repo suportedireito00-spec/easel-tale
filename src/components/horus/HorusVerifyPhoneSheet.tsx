@@ -8,7 +8,7 @@ import { haptic } from '@/lib/nativeHaptics';
 type Props = {
   open: boolean;
   onClose: () => void;
-  onVerified: () => void;
+  onVerified: (info?: { transferred?: boolean }) => void;
   initialPhone?: string;
 };
 
