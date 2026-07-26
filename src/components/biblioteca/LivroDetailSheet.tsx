@@ -324,8 +324,9 @@ const LivroDetailSheet = ({ livro, open, onClose }: LivroDetailSheetProps) => {
                       // do LeitorNativo).
                       if (isDesktop) {
                         if (!canUse) { setGateOpen(true); return; }
-                        register();
+                        register(String(livro.id));
                         setReaderMode('nativa');
+
                         return;
                       }
                       setLerDialog(true);
