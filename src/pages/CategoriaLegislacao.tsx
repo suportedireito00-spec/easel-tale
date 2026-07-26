@@ -2604,7 +2604,7 @@ const CategoriaLegislacao = () => {
         {typeof document !== 'undefined' && createPortal(footerBottomNav, document.body)}
         {typeof document !== 'undefined' && createPortal(footerOverlayPanels, document.body)}
 
-        <PremiumGate open={showPremiumGate} onClose={() => setShowPremiumGate(false)} feature="radar" description={premiumGateDesc} />
+        <PremiumGate open={showPremiumGate} onClose={() => setShowPremiumGate(false)} feature={premiumGateFeature} description={premiumGateDesc} />
 
         <OcrScanner
           open={ocrOpen}
