@@ -71,6 +71,10 @@ const PremiumGate = ({
   const Icon = info.icon;
   const shownTitle = title ?? info.title;
   const shownDesc = description ?? info.description;
+  const [showBenefits, setShowBenefits] = useState(false);
+  useEffect(() => { if (!open) setShowBenefits(false); }, [open]);
+
+
 
   const content = (
     <AnimatePresence>
