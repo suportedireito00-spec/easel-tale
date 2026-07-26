@@ -262,7 +262,13 @@ function ProtectedRoute({ children, requireOnboarding = true }: { children: Reac
     ? localStorage.getItem(cacheKey) === '1'
     : false;
 
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Otimista pós-cadastro: se acabou de criar conta nesta sessão, já assume
+  // que precisa passar pela triagem — evita spinner de 3-5s enquanto o
+  // Supabase ainda não respondeu com o perfil recém-criado.
+  const justSignedUp =
+    typeof window !== 'undefined' && window.sessionStorage.getItem('just_signed_up') === '1';
+
+  const [needsOnboarding, setNeedsOnboarding] = useState(justSignedUp);
   const [initialCheckDone, setInitialCheckDone] = useState(true);
 
   useEffect(() => {
@@ -273,21 +279,18 @@ function ProtectedRoute({ children, requireOnboarding = true }: { children: Reac
       return;
     }
 
-    // Já sabemos pelo cache local que onboarding foi concluído → pula a
-    // chamada ao Supabase. Reduz N requests/rota autenticada para 0.
     if (cachedDone) {
       setInitialCheckDone(true);
       setNeedsOnboarding(false);
+      try { window.sessionStorage.removeItem('just_signed_up'); } catch {}
       return;
     }
 
-    // Se offline, confia no cache (ou assume feito).
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       setInitialCheckDone(true);
       return;
     }
 
-    // Query em background — não bloqueia UI se já temos cache.
     (async () => {
       try {
         const { data } = await supabase
@@ -301,6 +304,7 @@ function ProtectedRoute({ children, requireOnboarding = true }: { children: Reac
           setNeedsOnboarding(!done);
           if (done && cacheKey) {
             try { localStorage.setItem(cacheKey, '1'); } catch {}
+            try { window.sessionStorage.removeItem('just_signed_up'); } catch {}
           }
         }
       } catch {}
@@ -308,7 +312,7 @@ function ProtectedRoute({ children, requireOnboarding = true }: { children: Reac
     })();
 
     return () => { cancelled = true; };
-  }, [user, cacheKey]);
+  }, [user, cacheKey, cachedDone]);
 
   if (loading) {
     return (
