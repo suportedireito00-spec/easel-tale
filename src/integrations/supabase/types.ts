@@ -5304,6 +5304,7 @@ export type Database = {
           areas_interesse: string[] | null
           bio: string | null
           capa_id: string
+          cidade: string | null
           created_at: string
           desktop_onboarding_done_at: string | null
           display_name: string | null
@@ -5313,12 +5314,16 @@ export type Database = {
           interacoes_total: number
           interesses: string[] | null
           is_premium: boolean
+          locale: string | null
           onboarding_completed_at: string | null
+          pais: string | null
           perfil_contexto: string | null
           perfil_tipos: string[] | null
           segundos_em_tela: number
           status_perfil: string | null
           telefone: string | null
+          timezone: string | null
+          uf: string | null
           updated_at: string
           whatsapp_number: string | null
         }
@@ -5326,6 +5331,7 @@ export type Database = {
           areas_interesse?: string[] | null
           bio?: string | null
           capa_id?: string
+          cidade?: string | null
           created_at?: string
           desktop_onboarding_done_at?: string | null
           display_name?: string | null
@@ -5335,12 +5341,16 @@ export type Database = {
           interacoes_total?: number
           interesses?: string[] | null
           is_premium?: boolean
+          locale?: string | null
           onboarding_completed_at?: string | null
+          pais?: string | null
           perfil_contexto?: string | null
           perfil_tipos?: string[] | null
           segundos_em_tela?: number
           status_perfil?: string | null
           telefone?: string | null
+          timezone?: string | null
+          uf?: string | null
           updated_at?: string
           whatsapp_number?: string | null
         }
@@ -5348,6 +5358,7 @@ export type Database = {
           areas_interesse?: string[] | null
           bio?: string | null
           capa_id?: string
+          cidade?: string | null
           created_at?: string
           desktop_onboarding_done_at?: string | null
           display_name?: string | null
@@ -5357,12 +5368,16 @@ export type Database = {
           interacoes_total?: number
           interesses?: string[] | null
           is_premium?: boolean
+          locale?: string | null
           onboarding_completed_at?: string | null
+          pais?: string | null
           perfil_contexto?: string | null
           perfil_tipos?: string[] | null
           segundos_em_tela?: number
           status_perfil?: string | null
           telefone?: string | null
+          timezone?: string | null
+          uf?: string | null
           updated_at?: string
           whatsapp_number?: string | null
         }
@@ -6789,35 +6804,50 @@ export type Database = {
       }
       user_sessions: {
         Row: {
+          cidade: string | null
           created_at: string
           display_name: string | null
           email: string | null
           id: string
           initial_route: string | null
+          locale: string | null
+          pais: string | null
           platform: string | null
           started_at: string
+          timezone: string | null
+          uf: string | null
           user_agent: string | null
           user_id: string
         }
         Insert: {
+          cidade?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
           initial_route?: string | null
+          locale?: string | null
+          pais?: string | null
           platform?: string | null
           started_at?: string
+          timezone?: string | null
+          uf?: string | null
           user_agent?: string | null
           user_id: string
         }
         Update: {
+          cidade?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
           initial_route?: string | null
+          locale?: string | null
+          pais?: string | null
           platform?: string | null
           started_at?: string
+          timezone?: string | null
+          uf?: string | null
           user_agent?: string | null
           user_id?: string
         }
@@ -7462,6 +7492,18 @@ export type Database = {
           email: string
           provider: string
           user_id: string
+        }[]
+      }
+      admin_user_geo: {
+        Args: { _user_id: string }
+        Returns: {
+          at: string
+          cidade: string
+          locale: string
+          pais: string
+          platform: string
+          timezone: string
+          uf: string
         }[]
       }
       aplicar_hierarquia_lei: {
