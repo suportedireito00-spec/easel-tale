@@ -368,6 +368,30 @@ const ArtigoBottomSheet = ({ artigo, onClose, isFavorito, onToggleFavorito, show
     setShowPremiumGate(true);
   };
 
+  /**
+   * Gate padrão das funções do artigo: 3 usos/mês na conta gratuita.
+   * O mesmo artigo não consome cota duas vezes (contagem por `ref_key`).
+   */
+  const gateFeature = async (
+    featureKey: string,
+    gateKey: PremiumFeatureKey,
+    label: string,
+    action: () => void,
+  ) => {
+    if (isPremium) { action(); return; }
+    const ref = `${tabelaNome}_${artigo?.numero}`;
+    try {
+      const ok = await canUseRef(featureKey, ref);
+      if (!ok) {
+        openPremiumGate(gateKey, `Você usou seus 3 usos gratuitos deste mês em ${label}. Comece 7 dias grátis para liberar.`);
+        return;
+      }
+      await registerUsage(featureKey, ref);
+    } catch { /* falha de rede: não bloqueia */ }
+    action();
+  };
+
+
   // ─── Grifo Mágico state ───
   interface MagicGrifo {
     trechoExato: string;
